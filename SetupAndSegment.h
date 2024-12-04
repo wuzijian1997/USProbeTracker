@@ -33,8 +33,8 @@
 const int REALSENSE_WIDTH = 848;
 const int REALSENSE_HEIGHT = 480;
 const int REALSENSE_FPS=90;
-const float ENABLE_REALSENSE_LASER = 1.f; //1 if we want the laser on
-const float REALSESENSE_LASER_POWER = 25.f;
+const float ENABLE_REALSENSE_LASER = 1.0f; //1 if we want the laser on
+const float REALSESENSE_LASER_POWER = 25.0f;
 
 //*********2D Image Crop Constants
 const int IMAGE_X_MAXCROP = 848;
@@ -44,10 +44,10 @@ const int IMAGE_Y_MINCROP = 0;
 
 //*********Contour Segmentation Constants**************
 const int CONTOUR_BIN_THRESHOLD = 222;
-const int COUNTOUR_MIN_AREA = 14;
-const int COUNTOUR_MAX_AREA = 575;
-const float CONTOUR_CONVEXITY = 0.70f;
-const float COUNTOUR_CIRCULARITY = 0.51f;
+const int COUNTOUR_MIN_AREA = 4;
+const int COUNTOUR_MAX_AREA = 450;
+const float CONTOUR_CONVEXITY = 0.68f;
+const float COUNTOUR_CIRCULARITY = 0.52f;
 
 //**********Blob Segmentation Constants****************
 const int BLOB_MIN_THRESHOLD = 10;
@@ -59,8 +59,8 @@ const int BLOB_MIN_DSTANCE_BETWEEN = 1;
 
 //*******Find Keypoints Constants***************
 const float KEYPOINTS_MAX_INTENSITY = 1000.0f;
-const int NEAR_CLIP = 0;
-const int FAR_CLIP = 65535;
+const double NEAR_CLIP = 0.25f; 
+const double FAR_CLIP = 1.60f; //Average Arm Span is 65 cm, we want the tracker to be about the same distance from eyes to hand
 const double DEFAULT_DEPTH_SCALE = 1000.0f; //Converts raw depth values to meters, must update the value using the setDepthScale() method
 
 class SetupAndSegment
@@ -95,6 +95,11 @@ public:
 	rs2::config _realSense_config;
 	rs2::pipeline _realSense_pipeline;
 	rs2::context _realSense_context;
+	std::unique_ptr<rs2::align> _align_to_left_ir;
+	void initializeAlign(rs2_stream stream_Type);
+
+	double m_depthNearClip = NEAR_CLIP;
+	double m_depthFarClip = FAR_CLIP;
 
 	//*****Setup Functions*****
 	bool GPUSetup();
@@ -112,7 +117,7 @@ public:
 	/// @param roiRightCol the column index of the right limit of the camera's region of interest
 	/// @param nearClipPlane the depth value of the near clipping plane
 	/// @param farClipPlane the depth value of the far clipping plane
-	void setCameraBoundaries(int roiUpperRow, int roiLowerRow, int roiLeftCol, int roiRightCol, int nearClipPlane, int farClipPlane);
+	void setCameraBoundaries(int roiUpperRow, int roiLowerRow, int roiLeftCol, int roiRightCol, double nearClipPlane, double farClipPlane);
 
 	//*****Segmentation Functions********
 
@@ -160,8 +165,6 @@ private:
 	cv::cuda::GpuMat d_im, d_im8b; //GPU CV Mat objects
 
 	//Camera Settings:
-	int m_depthNearClip = NEAR_CLIP;
-	int m_depthFarClip = FAR_CLIP;
 	int m_depthCamRoiLowerRow = REALSENSE_HEIGHT-1;
 	int m_depthCamRoiUpperRow = 0;
 	int m_depthCamRoiLeftCol = 0;

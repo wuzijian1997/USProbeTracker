@@ -94,6 +94,8 @@ bool SetupAndSegment::RealSenseSetup()
     _realSense_config.enable_stream(RS2_STREAM_INFRARED, 2, REALSENSE_WIDTH, REALSENSE_HEIGHT, RS2_FORMAT_Y8, REALSENSE_FPS);
     _realSense_config.enable_stream(RS2_STREAM_DEPTH, REALSENSE_WIDTH, REALSENSE_HEIGHT, RS2_FORMAT_Z16, REALSENSE_FPS);
 
+
+
     //Gets the depth scale
     auto depth_units = _realSense_context.query_devices().front().query_sensors().front().get_option(RS2_OPTION_DEPTH_UNITS);
     m_depth_scale = (double)depth_units; //Sets the depth scale
@@ -109,6 +111,8 @@ bool SetupAndSegment::RealSenseSetup()
         std::cout << "************************************" << std::endl;
         return(false);
     }
+    
+    
 
     //Setting Laser Power
     rs2::device selected_device = pipeline_profile.get_device();
@@ -125,12 +129,16 @@ bool SetupAndSegment::RealSenseSetup()
         depth_sensor.set_option(RS2_OPTION_LASER_POWER, REALSESENSE_LASER_POWER); // Set  power
     }
 
+    //Aligns tos infrared stream
+    initializeAlign(RS2_STREAM_INFRARED);
     
 
     return(true); //Properly configured
 
 }
-
+void SetupAndSegment::initializeAlign(rs2_stream stream_Type) {
+    _align_to_left_ir = std::make_unique<rs2::align>(stream_Type);
+}
 
 //******************************Marker Segmentation****************************
 
@@ -208,7 +216,7 @@ Eigen::Vector4i SetupAndSegment::setROI(int xMin, int xMax, int yMin, int yMax) 
 }
 
 //Sets up the camera boundaries
-void SetupAndSegment::setCameraBoundaries(int roiUpperRow, int roiLowerRow, int roiLeftCol, int roiRightCol, int nearClipPlane, int farClipPlane) {
+void SetupAndSegment::setCameraBoundaries(int roiUpperRow, int roiLowerRow, int roiLeftCol, int roiRightCol, double nearClipPlane, double farClipPlane) {
     m_depthCamRoiUpperRow = roiUpperRow;
     m_depthCamRoiLowerRow = roiLowerRow;
     m_depthCamRoiLeftCol = roiLeftCol;
@@ -365,8 +373,8 @@ std::shared_ptr<SetupAndSegment::IrDetection> SetupAndSegment::findKeypointsWorl
     {
         cv::Mat outputImage;
         cv::drawKeypoints(im,keypoints,outputImage, cv::Scalar(0, 255, 0), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
-        cv::imshow("Keypoints", outputImage);
-        char c = cv::waitKey(1);	//Grabs Key Press, if q we close
+        cv::imshow("Contours", outputImage);
+        cv::waitKey(1);	//Grabs Key Press, if q we close
 
         //Save the 3D Points
         for (size_t i = 0; i < keypoints.size(); i++)
@@ -392,7 +400,12 @@ std::shared_ptr<SetupAndSegment::IrDetection> SetupAndSegment::findKeypointsWorl
             //Find Depth at point
             auto depth = (*depthMap)[(int)(yInt * width + xInt)];
             double depth_m = (double)depth * m_depth_scale; //Converts depth (16 bit representation) to meters
-            if (depth_m<m_depthNearClip || depth_m>m_depthFarClip) continue;
+
+            if (depth_m<m_depthNearClip || depth_m>m_depthFarClip) {
+                //std::cout << "Entered" << std::endl;
+                continue;
+               
+            }
             Eigen::Vector3d pt = depth_m * pointOnUnitPlane.normalized(); //Might need to change the divide by 1000
 
             //Find the diameter of the blob in the world coordinates
