@@ -156,20 +156,20 @@ private:
 	double _area, _cvxArea, _cvxity, _circy;
 
 	//****Vars for findKeypointsWorldFrame****
-	const std::vector<int> _imagesz = { REALSENSE_WIDTH, REALSENSE_HEIGHT };
+	const std::vector<int> _imagesz = { REALSENSE_HEIGHT,REALSENSE_WIDTH };
 	cv::cuda::GpuMat d_im, d_im8b; //GPU CV Mat objects
 
 	//Camera Settings:
 	int m_depthNearClip = NEAR_CLIP;
 	int m_depthFarClip = FAR_CLIP;
-	int m_depthCamRoiLowerRow = REALSENSE_HEIGHT;
+	int m_depthCamRoiLowerRow = REALSENSE_HEIGHT-1;
 	int m_depthCamRoiUpperRow = 0;
 	int m_depthCamRoiLeftCol = 0;
-	int m_depthCamRoiRightCol = REALSENSE_WIDTH;
+	int m_depthCamRoiRightCol = REALSENSE_WIDTH-1;
 
 	// Region of Interest for search
-	int m_xMaxCrop = IMAGE_X_MAXCROP;
-	int m_yMaxCrop = IMAGE_Y_MAXCROP;
+	int m_xMaxCrop = IMAGE_X_MAXCROP-1;
+	int m_yMaxCrop = IMAGE_Y_MAXCROP-1;
 	int m_xMinCrop = IMAGE_X_MINCROP;
 	int m_yMinCrop = IMAGE_Y_MINCROP;
 

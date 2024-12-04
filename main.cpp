@@ -46,7 +46,7 @@ int main()
 				rs2::depth_frame depth_frame = frameset.get_depth_frame();
 
 				//Converts depth frame to vector representation
-				auto depth_data = reinterpret_cast<const uint16_t*>(ir_frame_right.get_data());
+				auto depth_data = reinterpret_cast<const uint16_t*>(depth_frame.get_data());
 				std::vector<uint16_t> depth_vector(depth_data, depth_data + (REALSENSE_HEIGHT * REALSENSE_WIDTH));
 				auto depth_ptr = std::make_unique<std::vector<uint16_t>>(std::move(depth_vector));
 

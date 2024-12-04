@@ -97,7 +97,6 @@ bool SetupAndSegment::RealSenseSetup()
     //Gets the depth scale
     auto depth_units = _realSense_context.query_devices().front().query_sensors().front().get_option(RS2_OPTION_DEPTH_UNITS);
     m_depth_scale = (double)depth_units; //Sets the depth scale
-
     //Starting Device
     rs2::pipeline_profile pipeline_profile;
     try {
@@ -143,7 +142,7 @@ SetupAndSegment::SetupAndSegment(int width, int height, LogLevel logLevel)
     , m_logLevel(logLevel)
 {
     m_xMaxCrop = width - 1;
-    m_yMaxCrop = width - 1;
+    m_yMaxCrop = height - 1;
 
     // Default to normalized coordinates
     m_imagePointToCameraUnitPlane = [width, height](const std::array<double, 2>& uv, std::array<double, 2>& xy) {
@@ -306,7 +305,7 @@ std::shared_ptr<SetupAndSegment::IrDetection> SetupAndSegment::findKeypointsWorl
     }
 
     //Creates cv Mat image from data
-    cv::Mat im = cv::Mat(_imagesz, CV_16UC1, irIm->data(), 0);
+    cv::Mat im = cv::Mat(_imagesz, CV_8UC1, irIm->data(), 0);
     if (im.empty()) {
         return detection;
     }
@@ -315,9 +314,9 @@ std::shared_ptr<SetupAndSegment::IrDetection> SetupAndSegment::findKeypointsWorl
     //const std::vector<int> croppedSz = { m_yMaxCrop - m_yMaxCrop + 1, m_xMaxCrop - m_xMinCrop + 1 };
     //cv::Mat im8b = cv::Mat(croppedSz, CV_16UC1); //The image that we are going to crop to
 
+
     cv::Rect roi(xMinCrop, yMinCrop, xMaxCrop - xMinCrop + 1, yMaxCrop - yMinCrop + 1);
     cv::Mat im8b=im(roi).clone(); //Crops the image to the ROI
-
     //const void* depthData = depthFrame.get_data(); // Retrieve the data once
     //if (!depthFrame || depthData == nullptr) {
     //    return detection; // Return empty depth detection
@@ -364,6 +363,10 @@ std::shared_ptr<SetupAndSegment::IrDetection> SetupAndSegment::findKeypointsWorl
     //Map to 3D
     if (success)
     {
+        cv::Mat outputImage;
+        cv::drawKeypoints(im,keypoints,outputImage, cv::Scalar(0, 255, 0), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
+        cv::imshow("Keypoints", outputImage);
+        char c = cv::waitKey(1);	//Grabs Key Press, if q we close
 
         //Save the 3D Points
         for (size_t i = 0; i < keypoints.size(); i++)
@@ -388,10 +391,9 @@ std::shared_ptr<SetupAndSegment::IrDetection> SetupAndSegment::findKeypointsWorl
 
             //Find Depth at point
             auto depth = (*depthMap)[(int)(yInt * width + xInt)];
-            depth = depth * m_depth_scale; //Converts depth (16 bit representation) to meters
-            std::cout << "Depth= " << depth << std::endl;
-            if (depth<m_depthNearClip || depth>m_depthFarClip) continue;
-            Eigen::Vector3d pt = ((double)depth) * pointOnUnitPlane.normalized(); //Might need to change the divide by 1000
+            double depth_m = (double)depth * m_depth_scale; //Converts depth (16 bit representation) to meters
+            if (depth_m<m_depthNearClip || depth_m>m_depthFarClip) continue;
+            Eigen::Vector3d pt = depth_m * pointOnUnitPlane.normalized(); //Might need to change the divide by 1000
 
             //Find the diameter of the blob in the world coordinates
             auto left = (x - keypoints[i].size / 2 > 0) ? x - keypoints[i].size / 2 : 0;
@@ -406,8 +408,8 @@ std::shared_ptr<SetupAndSegment::IrDetection> SetupAndSegment::findKeypointsWorl
             auto leftPoint = Eigen::Vector3d(xyL[0], xyL[1], 1);
             auto rightPoint = Eigen::Vector3d(xyR[0], xyR[1], 1);
 
-            leftPoint = ((double)depth) * leftPoint.normalized();
-            rightPoint = ((double)depth) * rightPoint.normalized();
+            leftPoint = depth_m * leftPoint.normalized();
+            rightPoint = depth_m * rightPoint.normalized();
             double diam = (rightPoint - leftPoint).norm();
 
             // Save the points
