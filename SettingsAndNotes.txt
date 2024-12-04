@@ -1,0 +1,9 @@
+With IR Illuminator:
+- Use Dot pattern of 50 power
+
+depth image corresponds to right IR image (infrared stream #2)
+
+Things to do:
+- We should set a world frame and keep it still somehow?
+	- Maybe place an AruCo marker on the patient's bed on a stationary part to reduce errors
+	- We will also be getting surface mesh of the patient
