@@ -44,7 +44,7 @@ const int IMAGE_Y_MINCROP = 0;
 
 //*********Contour Segmentation Constants**************
 const int CONTOUR_BIN_THRESHOLD = 222;
-const int COUNTOUR_MIN_AREA = 4;
+const int COUNTOUR_MIN_AREA = 7;
 const int COUNTOUR_MAX_AREA = 450;
 const float CONTOUR_CONVEXITY = 0.68f;
 const float COUNTOUR_CIRCULARITY = 0.52f;
@@ -100,6 +100,11 @@ public:
 
 	double m_depthNearClip = NEAR_CLIP;
 	double m_depthFarClip = FAR_CLIP;
+	rs2_intrinsics _realSense_intrinsics_leftIR;
+
+	//Most Recent ir and depth frames (updates by the grabSensorFrames function)
+	
+
 
 	//*****Setup Functions*****
 	bool GPUSetup();

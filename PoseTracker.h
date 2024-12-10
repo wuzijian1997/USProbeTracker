@@ -4,12 +4,12 @@
 #include <future>
 
 //*************Pose Tracking Constants************
-const float MROI_SCALE_X = 1.0f/1.8f;
-const float MROI_SCALE_Y = 1.25f;
+const float MROI_SCALE_X = 1.0f; //1.0f/1.8f;
+const float MROI_SCALE_Y = 1.0f;
 
 //Outlier Removal (near/far clip)
-const float OUTLIER_NEAR_CLIP = 0.05;
-const float OUTLIER_FAR_CLIP = 2;
+const float OUTLIER_NEAR_CLIP = NEAR_CLIP;
+const float OUTLIER_FAR_CLIP = FAR_CLIP;
 
 class PoseTracker
 {
@@ -54,6 +54,10 @@ public:
 	/// @param numFramesUntilSet if a point jumped but is still there after this many frames, the new position is probably correct so we accept it
 	void setJumpSettings(bool filterJumps, const float jumpThresholdMetres, const int numFramesUntilSet);
 
+	/// The current computed object pose
+	//Isometry3d m_objectPose = Isometry3d::Identity();
+	IRPose m_objectPose;
+
 private:
 	struct SensorPacket {
 		SensorPacket(std::unique_ptr<std::vector<uint16_t>> ir, std::unique_ptr<std::vector<uint16_t>> depth)
@@ -75,9 +79,7 @@ private:
 	std::mutex m_poseMutex;
 	std::mutex m_camMutex;
 
-	/// The current computed object pose
-	//Isometry3d m_objectPose = Isometry3d::Identity();
-	IRPose m_objectPose;
+
 
 	/// Lockless, concurrent queue to pass images to IR detection thread
 	moodycamel::ReaderWriterQueue<SensorPacket> m_detectionQ;

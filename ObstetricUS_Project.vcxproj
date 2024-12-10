@@ -150,6 +150,7 @@
     <ClCompile Include="pch.cpp" />
     <ClCompile Include="PoseTracker.cpp" />
     <ClCompile Include="SetupAndSegment.cpp" />
+    <ClCompile Include="USVideoStreaming.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="atomicops.h" />
@@ -159,6 +160,7 @@
     <ClInclude Include="PoseTracker.h" />
     <ClInclude Include="readerwriterqueue.h" />
     <ClInclude Include="SetupAndSegment.h" />
+    <ClInclude Include="USVideoStreaming.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

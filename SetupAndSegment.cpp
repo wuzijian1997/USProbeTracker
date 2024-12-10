@@ -111,6 +111,24 @@ bool SetupAndSegment::RealSenseSetup()
         std::cout << "************************************" << std::endl;
         return(false);
     }
+
+    //Gets the intrinsics of the left IR camera
+    auto stream_profiles = pipeline_profile.get_streams();
+    bool found = false;
+    for (auto& sp : stream_profiles) {
+        if (sp.stream_type() == RS2_STREAM_INFRARED && sp.stream_index() == 1) {
+            auto video_stream_profile = sp.as<rs2::video_stream_profile>();
+            _realSense_intrinsics_leftIR = video_stream_profile.get_intrinsics();
+            found = true;
+            break;
+        }
+    }
+
+    if (!found) {
+        std::cerr << "Could not find the left infrared camera stream profile." << std::endl;
+        return EXIT_FAILURE;
+    }
+
     
     
 
@@ -129,7 +147,7 @@ bool SetupAndSegment::RealSenseSetup()
         depth_sensor.set_option(RS2_OPTION_LASER_POWER, REALSESENSE_LASER_POWER); // Set  power
     }
 
-    //Aligns tos infrared stream
+    //Aligns to left infrared stream
     initializeAlign(RS2_STREAM_INFRARED);
     
 
@@ -139,6 +157,13 @@ bool SetupAndSegment::RealSenseSetup()
 void SetupAndSegment::initializeAlign(rs2_stream stream_Type) {
     _align_to_left_ir = std::make_unique<rs2::align>(stream_Type);
 }
+
+
+//Method to get frames from camera sensor and filter the depth frame
+//void SetupAndSegment::grabSensorFrames()
+//{
+//
+//}
 
 //******************************Marker Segmentation****************************
 
@@ -237,34 +262,36 @@ void SetupAndSegment::setCameraBoundaries(int roiUpperRow, int roiLowerRow, int 
 
 //Contour Detection
 bool SetupAndSegment::contourDetect(cv::Mat& im, std::vector<cv::KeyPoint>& keypoints) {
-    
+    cv::Mat imbW;
+    cv::threshold(im, imbW, CONTOUR_BIN_THRESHOLD, 255, cv::THRESH_BINARY);
     //Upload image to GPU
-    _d_im.upload(im);
+    //_d_im.upload(im);
 
     //Threshold
-    cv::cuda::threshold(_d_im, _d_imBW, CONTOUR_BIN_THRESHOLD, 255, cv::THRESH_BINARY);
+    //cv::cuda::threshold(_d_im, _d_imBW, CONTOUR_BIN_THRESHOLD, 255, cv::THRESH_BINARY);
 
     //Download Result back to cpu for contour detection
-    _d_imBW.download(_imBW);
+    //_d_imBW.download(_imBW);
 
     // Use findContours
-    cv::findContours(_imBW, _contours, cv::RETR_LIST, cv::CHAIN_APPROX_SIMPLE);
+    std::vector<std::vector<cv::Point>> contours;
+    cv::findContours(imbW, contours, cv::RETR_LIST, cv::CHAIN_APPROX_SIMPLE);
 
-    for (size_t i = 0; i < _contours.size(); i++) {
+    for (size_t i = 0; i < contours.size(); i++) {
 
         // Compute area
-        _area = cv::contourArea(_contours[i]);
+        _area = cv::contourArea(contours[i]);
 
         // Compute convexity
         std::vector<cv::Point> cvxHull;
      
-        cv::convexHull(_contours[i], cvxHull);
+        cv::convexHull(contours[i], cvxHull);
         _cvxArea = cv::contourArea(cvxHull);
         _cvxity = _area / _cvxArea;
 
         // Compute circularity
         cv::Point2f centre; float radius;
-        cv::minEnclosingCircle(_contours[i], centre, radius);
+        cv::minEnclosingCircle(contours[i], centre, radius);
         _circy = _area / (3.14159265 * radius * radius);
 
         // Filter by area, convexity, circularity
@@ -273,12 +300,12 @@ bool SetupAndSegment::contourDetect(cv::Mat& im, std::vector<cv::KeyPoint>& keyp
 
         // Find contour centroids and save as keypoints
         float x = 0; float y = 0;
-        for (size_t j = 0; j < _contours[i].size(); j++) {
-            x += _contours[i][j].x;
-            y += _contours[i][j].y;
+        for (size_t j = 0; j < contours[i].size(); j++) {
+            x += contours[i][j].x;
+            y += contours[i][j].y;
         }
-        x /= _contours[i].size();
-        y /= _contours[i].size();
+        x /= contours[i].size();
+        y /= contours[i].size();
 
         cv::KeyPoint p(x, y, 0);
         p.size = radius * 2;
@@ -371,10 +398,10 @@ std::shared_ptr<SetupAndSegment::IrDetection> SetupAndSegment::findKeypointsWorl
     //Map to 3D
     if (success)
     {
-        cv::Mat outputImage;
-        cv::drawKeypoints(im,keypoints,outputImage, cv::Scalar(0, 255, 0), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
-        cv::imshow("Contours", outputImage);
-        cv::waitKey(1);	//Grabs Key Press, if q we close
+        //cv::Mat outputImage;
+        //cv::drawKeypoints(im,keypoints,outputImage, cv::Scalar(0, 255, 0), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
+        //cv::imshow("Contours", outputImage);
+        //cv::waitKey(1);	//Grabs Key Press, if q we close
 
         //Save the 3D Points
         for (size_t i = 0; i < keypoints.size(); i++)
@@ -406,7 +433,7 @@ std::shared_ptr<SetupAndSegment::IrDetection> SetupAndSegment::findKeypointsWorl
                 continue;
                
             }
-            Eigen::Vector3d pt = depth_m * pointOnUnitPlane.normalized(); //Might need to change the divide by 1000
+            Eigen::Vector3d pt = depth_m * pointOnUnitPlane.normalized(); 
 
             //Find the diameter of the blob in the world coordinates
             auto left = (x - keypoints[i].size / 2 > 0) ? x - keypoints[i].size / 2 : 0;
