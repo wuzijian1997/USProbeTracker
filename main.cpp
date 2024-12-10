@@ -15,19 +15,30 @@ cv::Mat ir_mat_left, ir_mat_right; //OpenCV Matrices of right/left
 
 cv::Mat US_frame;
 
+bool continueUS = true;;
 
 int main()
 {
-	//Inits the US Video Streamer Object
-	USVideoStreaming USStreamer(false); //Shows the US stream when true
+	//Inits the US Video Streamer Object and stream thread
+	USVideoStreaming USStreamer(true); //Shows the US stream when true
 	
-	while (1)
+	while (true)
 	{
-		if(USStreamer.hasNewFrame())
-		{ 
-			std::cout << "New Frame" << std::endl;
-			US_frame = USStreamer.getFrame();
+		cv::Mat usFrame = USStreamer.getFrame(); //Gets most recent frame
+
+		if (usFrame.empty())
+		{
+			//do something here later
+			std::cout << "Empty US Frame" << std::endl;
+			continue;
 		}
+		continueUS =USStreamer.showFrame();
+
+		if(!continueUS) //The US Stream Window was closed via 'Esc'
+		{
+			break;
+		}
+
 	}
 
 
@@ -227,4 +238,5 @@ int main()
 
 	//}
 
+return 0;
 }

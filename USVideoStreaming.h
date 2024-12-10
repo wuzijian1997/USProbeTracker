@@ -31,28 +31,35 @@ public:
 
 	//USFrame is what we read
 	cv::Mat USFrameScaled,USFrame; //USFrameScaled is dpi scaled, then USFrame is rescaled to match the proper display size
-
+	
+	
 
 	//Set up the streaming of the US video
 	//Create the streaming object
 	explicit USVideoStreaming(bool show_stream); //To Do: Allow Dynamic size changes on the scrcpy window
 	~USVideoStreaming();
 
-	//Method to wait for new frame arrival, and convert the data to a cv::Mat object
-	void ReadFrames();
+	
 
 	//Methods to check if a new frame has arrived and to get that frame
-	bool hasNewFrame();
+	//bool hasNewFrame();
 	cv::Mat getFrame(); //Gets the frame
+	bool showFrame(); //Method to show the frame
 
 private:
 	void createBitmapHeader(int width, int height);
+	//Method to wait for new frame arrival, and convert the data to a cv::Mat object
+	void ReadFrames();
 
-	//Used by the thread to update the pose
-	std::mutex _frame_mutex;
+	//Threading Setup
+	//This is queue that is used to push frames to in the thread
+	std::queue<cv::Mat> _frameQueue;
+	std::mutex _frameMutex;
+	std::condition_variable _frameArrivedVar;
 	std::shared_ptr<std::thread> _frame_Thread;
 	std::atomic<bool> _runFrame_Thread=true;
-	std::atomic<bool> _hasNew_Frame=false; //Do we have a new frame
+	//std::atomic<bool> _hasNew_Frame=false; //Do we have a new frame
+
 
 };
 

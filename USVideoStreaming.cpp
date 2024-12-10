@@ -104,6 +104,10 @@ USVideoStreaming::~USVideoStreaming()
 		_frame_Thread->join();
 	}
 
+	while (_frameQueue.size() > 0) {
+		_frameQueue.pop();
+	}
+
 }
 
 
@@ -132,42 +136,58 @@ void USVideoStreaming::ReadFrames()
 	while (_runFrame_Thread)
 	{
 
-		//Sets the new frame in a thread-sage way
+		//Gets the new frame in "USFrame"
+		
+		//StretchBlt(_hwindowCompatibleDC, 0, 0, _windowWidth, _windowHeight, _hwindowDC, 0, 0, _windowWidth, _windowHeight, SRCCOPY);
+		BitBlt(_hwindowCompatibleDC, 0, 0, _windowWidth, _windowHeight, _hwindowDC, 0, 0, SRCCOPY);
+		GetDIBits(_hwindowCompatibleDC, _hbwindow, 0, _windowHeight, USFrameScaled.data, (BITMAPINFO*)&_bi, DIB_RGB_COLORS);
+		cv::resize(USFrameScaled, USFrame, cv::Size(_windowWidth_original, _windowHeight_original), 0, 0, cv::INTER_CUBIC);
+
+		//Updates the frame queue and locks the mutex before writing to the queue and notifying
+		//cv::Mat NewFrame = USFrame.clone();
+
 		{
-			std::scoped_lock<std::mutex> lock(_frame_mutex);
-
-			//StretchBlt(_hwindowCompatibleDC, 0, 0, _windowWidth, _windowHeight, _hwindowDC, 0, 0, _windowWidth, _windowHeight, SRCCOPY);
-			BitBlt(_hwindowCompatibleDC, 0, 0, _windowWidth, _windowHeight, _hwindowDC, 0, 0, SRCCOPY);
-			GetDIBits(_hwindowCompatibleDC, _hbwindow, 0, _windowHeight, USFrameScaled.data, (BITMAPINFO*)&_bi, DIB_RGB_COLORS);
-
-
-			cv::resize(USFrameScaled, USFrame, cv::Size(_windowWidth_original, _windowHeight_original), 0, 0, cv::INTER_CUBIC);
-
-			//Sets the threading    atomic var to true for the new frame
-			_hasNew_Frame = true;
-
-
-			if (_showStream)
-			{   
-
-				cv::imshow(USSTREAMDISPLAYNAME, USFrame); //Shows the frame
-				cv::waitKey(1);
-
+			std::lock_guard<std::mutex> l{ _frameMutex };
+			if (_frameQueue.size() > 10) {
+				_frameQueue.pop(); // Discard the oldest frame if the queue is too large
 			}
+			_frameQueue.push(USFrame.clone());
 		}
+
+		//Notifies recipient thread
+		_frameArrivedVar.notify_one();
+
 
 	}	
 
 }
-
+// Gets most recent frame from the thread
 cv::Mat USVideoStreaming::getFrame()
 {
-	std::scoped_lock<std::mutex> lock(_frame_mutex);
-	_hasNew_Frame = false;
-	return USFrame;
+	cv::Mat currFrame;
+	std::unique_lock<std::mutex> lock{ _frameMutex };
+	_frameArrivedVar.wait(lock, [this]() { return !_frameQueue.empty(); });
+	currFrame = _frameQueue.front();
+	_frameQueue.pop();
+	lock.unlock();
+
+	return currFrame;
 }
-//Checks if a new frame has arrived
-bool USVideoStreaming::hasNewFrame()
+
+bool USVideoStreaming::showFrame()
 {
-	return _hasNew_Frame;
+	bool returnBool = true;
+	//Shows the frame if we want to
+	if (_showStream)
+	{
+
+		cv::imshow(USSTREAMDISPLAYNAME, USFrame); //Shows the frame
+		if (cv::waitKey(1) == 27) { // Press 'Esc' to exit
+			returnBool=false;
+		}
+
+	}
+
+	return returnBool;
+
 }
