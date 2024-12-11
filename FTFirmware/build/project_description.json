@@ -1,7 +1,7 @@
 {
     "version":            "1.1",
     "project_name":       "magft",
-    "project_version":    "9876d8a-dirty",
+    "project_version":    "90efdda-dirty",
     "project_path":       "C:/Users/alexa/OneDrive/Documents/UBC_Thesis/Code/ObstetricUS_Project/FTFirmware",
     "idf_path":           "C:/Users/alexa/esp/v5.3.2/esp-idf",
     "build_dir":          "C:/Users/alexa/OneDrive/Documents/UBC_Thesis/Code/ObstetricUS_Project/FTFirmware/build",

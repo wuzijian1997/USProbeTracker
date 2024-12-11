@@ -20,16 +20,28 @@ bool continueUS = true;;
 
 int main()
 {
-	//Inits the ShellSensor Serial Streamer Object
+	//Constructs the ShellSensor Serial Streamer Object
 	ShellSensorReader shellReader(SHELLSENSOR_PORTNAME, SHELLSENSOR_BAUDRATE,20); //Sets the baud rate, the timeout is how long we wait for the thread before returning empty, standard is 20 ms
-	//Checks if it is initialized
+	//Initializes parameters, and checks if the port is connected
 	if (!shellReader.initialize())
 	{
 		std::cout << "Failed to Initialize Serial Port" << std::endl;
 		return 0;
 	}
 
-	shellReader.readLines();
+	//Init strings that we read into
+	std::string force_string,temp_imu_string;
+	while (true)
+	{
+		//Gets the strings of data from the force sensor
+		shellReader.getForceString(force_string);
+		shellReader.getTempIMUString(temp_imu_string);
+		std::cout << "Force String: " << force_string << std::endl;
+		std::cout << "Temp/IMU String: " << temp_imu_string << std::endl;
+
+	}
+
+	
 
 
 	//Inits the US Video Streamer Object and stream thread

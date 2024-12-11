@@ -160,7 +160,7 @@ void USVideoStreaming::ReadFrames()
 			_frameQueue.push(USFrame.clone());
 		}
 
-		//Notifies recipient thread
+		//Notifies recipient
 		_frameArrivedVar.notify_one();
 
 
