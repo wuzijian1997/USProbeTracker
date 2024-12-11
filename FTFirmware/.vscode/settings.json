@@ -1,0 +1,12 @@
+{
+    "C_Cpp.intelliSenseEngine": "default",
+    "idf.espIdfPathWin": "C:\\Users\\alexa\\esp\\v5.3.2\\esp-idf",
+    "idf.toolsPathWin": "C:\\Users\\alexa\\.espressif",
+    "idf.portWin": "COM9",
+    "idf.flashType": "UART",
+    "files.associations": {
+        "esp_mac.h": "c",
+        "freertos.h": "c",
+        "magft_settings.h": "c"
+    }
+}
