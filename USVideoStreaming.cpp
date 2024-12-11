@@ -2,7 +2,7 @@
 
 
 //****************Setup Methods******************
-USVideoStreaming::USVideoStreaming(bool show_stream)
+USVideoStreaming::USVideoStreaming(bool show_stream, int timeout)
 	: _showStream(show_stream),
 	_windowHandle(nullptr),
 	_windowWidth(0),
@@ -14,7 +14,8 @@ USVideoStreaming::USVideoStreaming(bool show_stream)
 	_hwindowDC(nullptr),
 	_hwindowCompatibleDC(nullptr),
 	_hbwindow(nullptr),
-	_bi{}
+	_bi{},
+	_timeout(timeout)
 {
 	_windowHandle = FindWindow(0, WINDOWDISPLAYNAME.c_str());
 	if (!_windowHandle)
@@ -92,19 +93,24 @@ USVideoStreaming::USVideoStreaming(bool show_stream)
 //Destroying objects to protect against memory leaks
 USVideoStreaming::~USVideoStreaming()
 {
+	{
+		std::lock_guard<std::mutex> lock(_frameMutex);
+		_runFrame_Thread = false;
+	}
+
+	if (_frame_Thread && _frame_Thread->joinable())
+	{
+		_frame_Thread->join();
+	}
 
 	//Deletes the streaming objects from window API
 	DeleteObject(_hbwindow);
 	DeleteDC(_hwindowCompatibleDC);
 	ReleaseDC(_windowHandle, _hwindowDC);
 	cv::destroyWindow(USSTREAMDISPLAYNAME);
-	_runFrame_Thread = false;
-	if (_frame_Thread && _frame_Thread->joinable())
-	{
-		_frame_Thread->join();
-	}
+	
 
-	while (_frameQueue.size() > 0) {
+	while (!_frameQueue.empty()) {
 		_frameQueue.pop();
 	}
 
@@ -166,9 +172,18 @@ cv::Mat USVideoStreaming::getFrame()
 {
 	cv::Mat currFrame;
 	std::unique_lock<std::mutex> lock{ _frameMutex };
-	_frameArrivedVar.wait(lock, [this]() { return !_frameQueue.empty(); });
-	currFrame = _frameQueue.front();
-	_frameQueue.pop();
+	//Returns empty frame if waiting longer than 20 ms (50 Hz)
+	if (!_frameArrivedVar.wait_for(lock, std::chrono::milliseconds(_timeout), [this]() { return !_frameQueue.empty(); }))
+	{
+		//We had a timeout event
+		return currFrame;
+	}
+	if (!_frameQueue.empty())
+	{
+		//Grab frame if not empty queue
+		currFrame = _frameQueue.front();
+		_frameQueue.pop();
+	}
 	lock.unlock();
 
 	return currFrame;

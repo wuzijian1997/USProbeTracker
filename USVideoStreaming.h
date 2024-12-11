@@ -18,6 +18,7 @@ public:
 
 	//Class Vars
 	bool _showStream = false; //Whether we are printing the stream to an OpenCV window or not (this window can be shown to the patient instead of the scrcpy window)
+	int _timeout = 20; //Amount of time we wait for the thread to update a new frame before returning empty frame
 	HWND _windowHandle;
 	int _windowWidth = 0;
 	int _windowHeight=0;
@@ -36,7 +37,7 @@ public:
 
 	//Set up the streaming of the US video
 	//Create the streaming object
-	explicit USVideoStreaming(bool show_stream); //To Do: Allow Dynamic size changes on the scrcpy window
+	explicit USVideoStreaming(bool show_stream,int timeout); //To Do: Allow Dynamic size changes on the scrcpy window
 	~USVideoStreaming();
 
 	

@@ -5,6 +5,7 @@
 #include "SetupAndSegment.h"
 #include "PoseTracker.h"
 #include "USVideoStreaming.h"
+#include "ShellSensorReader.h"
 
 
 //*****************Init Vars****************
@@ -19,27 +20,39 @@ bool continueUS = true;;
 
 int main()
 {
-	//Inits the US Video Streamer Object and stream thread
-	USVideoStreaming USStreamer(true); //Shows the US stream when true
-	
-	while (true)
+	//Inits the ShellSensor Serial Streamer Object
+	ShellSensorReader shellReader(SHELLSENSOR_PORTNAME, SHELLSENSOR_BAUDRATE,20); //Sets the baud rate, the timeout is how long we wait for the thread before returning empty, standard is 20 ms
+	//Checks if it is initialized
+	if (!shellReader.initialize())
 	{
-		cv::Mat usFrame = USStreamer.getFrame(); //Gets most recent frame
-
-		if (usFrame.empty())
-		{
-			//do something here later
-			std::cout << "Empty US Frame" << std::endl;
-			continue;
-		}
-		continueUS =USStreamer.showFrame();
-
-		if(!continueUS) //The US Stream Window was closed via 'Esc'
-		{
-			break;
-		}
-
+		std::cout << "Failed to Initialize Serial Port" << std::endl;
+		return 0;
 	}
+
+	shellReader.readLines();
+
+
+	//Inits the US Video Streamer Object and stream thread
+	//USVideoStreaming USStreamer(true,20); //Shows the US stream when true, 20 ms timeout for reading from thread
+	//
+	//while (true)
+	//{
+	//	cv::Mat usFrame = USStreamer.getFrame(); //Gets most recent frame
+
+	//	if (usFrame.empty())
+	//	{
+	//		//do something here later
+	//		std::cout << "Empty US Frame" << std::endl;
+	//		continue;
+	//	}
+	//	continueUS =USStreamer.showFrame();
+
+	//	if(!continueUS) //The US Stream Window was closed via 'Esc'
+	//	{
+	//		break;
+	//	}
+
+	//}
 
 
 	////Sets up the marker geometry

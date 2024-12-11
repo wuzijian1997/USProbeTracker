@@ -51,6 +51,7 @@
     <PlatformToolset>v142</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
+    <CLRSupport>false</CLRSupport>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
@@ -134,6 +135,7 @@
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>Include\Eigen3\include;C:\Realsense_CPP\librealsense-2.54.2\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <CompileAsManaged>false</CompileAsManaged>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -150,6 +152,7 @@
     <ClCompile Include="pch.cpp" />
     <ClCompile Include="PoseTracker.cpp" />
     <ClCompile Include="SetupAndSegment.cpp" />
+    <ClCompile Include="ShellSensorReader.cpp" />
     <ClCompile Include="USVideoStreaming.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -160,6 +163,7 @@
     <ClInclude Include="PoseTracker.h" />
     <ClInclude Include="readerwriterqueue.h" />
     <ClInclude Include="SetupAndSegment.h" />
+    <ClInclude Include="ShellSensorReader.h" />
     <ClInclude Include="USVideoStreaming.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

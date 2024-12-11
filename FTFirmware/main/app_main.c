@@ -40,7 +40,7 @@ void measure_task()
         //Aquire the mutex before sending over serial:
         if(xSemaphoreTake(serialMutex,portMAX_DELAY))
         {
-            printf("HALLSENSORS: %d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
+            printf("FSN: %d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
             spiData[0], spiData[1], spiData[2], spiData[3], spiData[4], spiData[5],
             spiData[6], spiData[7], spiData[8], spiData[9], spiData[10], spiData[11]);
             
@@ -105,7 +105,7 @@ void imu_task()
             1,2,3=gyro
             4,5,6=accelerometer
             */
-            printf("IMUANDTEMP: %d,%d,%d,%d,%d,%d,%d\n",
+            printf("TGA: %d,%d,%d,%d,%d,%d,%d\n",
             sample[0],sample[1],sample[2],sample[3],sample[4],sample[5],sample[6]);
             xSemaphoreGive(serialMutex);
         }
