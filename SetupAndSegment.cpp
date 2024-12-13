@@ -86,19 +86,30 @@ bool SetupAndSegment::RealSenseSetup()
     {
         std::cout << "No RealSense Devices Were Found" << std::endl;
         std::cout << "************************************" << std::endl;
-        return(false);
+        return false;
     }
 
     //Enabling the streams:
-    _realSense_config.enable_stream(RS2_STREAM_INFRARED, 1, REALSENSE_WIDTH, REALSENSE_HEIGHT, RS2_FORMAT_Y8, REALSENSE_FPS);
-    _realSense_config.enable_stream(RS2_STREAM_INFRARED, 2, REALSENSE_WIDTH, REALSENSE_HEIGHT, RS2_FORMAT_Y8, REALSENSE_FPS);
-    _realSense_config.enable_stream(RS2_STREAM_DEPTH, REALSENSE_WIDTH, REALSENSE_HEIGHT, RS2_FORMAT_Z16, REALSENSE_FPS);
-
+    try {
+        _realSense_config.enable_stream(RS2_STREAM_INFRARED, 1, REALSENSE_WIDTH, REALSENSE_HEIGHT, RS2_FORMAT_Y8, REALSENSE_FPS);
+        _realSense_config.enable_stream(RS2_STREAM_INFRARED, 2, REALSENSE_WIDTH, REALSENSE_HEIGHT, RS2_FORMAT_Y8, REALSENSE_FPS);
+        _realSense_config.enable_stream(RS2_STREAM_DEPTH, REALSENSE_WIDTH, REALSENSE_HEIGHT, RS2_FORMAT_Z16, REALSENSE_FPS);
+    } catch (const rs2::error& e) {
+        std::cout << "Error enabling RealSense streams: " << e.what() << std::endl;
+        return false;
+    }
 
 
     //Gets the depth scale
-    auto depth_units = _realSense_context.query_devices().front().query_sensors().front().get_option(RS2_OPTION_DEPTH_UNITS);
-    m_depth_scale = (double)depth_units; //Sets the depth scale
+    try {
+        auto depth_units = _realSense_context.query_devices().front().query_sensors().front().get_option(RS2_OPTION_DEPTH_UNITS);
+        m_depth_scale = (double)depth_units; //Sets the depth scale
+
+    } catch (const rs2::error& e) {
+        std::cout << "Error retrieving depth scale: " << e.what() << std::endl;
+        return false;
+    }
+
     //Starting Device
     rs2::pipeline_profile pipeline_profile;
     try {
@@ -109,7 +120,7 @@ bool SetupAndSegment::RealSenseSetup()
     catch (const rs2::error& e) {
         std::cout << "Failed to initialize RealSense camera: " << e.what() << std::endl;
         std::cout << "************************************" << std::endl;
-        return(false);
+        return false;
     }
 
     //Gets the intrinsics of the left IR camera
@@ -125,35 +136,83 @@ bool SetupAndSegment::RealSenseSetup()
     }
 
     if (!found) {
-        std::cerr << "Could not find the left infrared camera stream profile." << std::endl;
+        std::cout << "Could not find the left infrared camera stream profile." << std::endl;
         return EXIT_FAILURE;
     }
+
+    
 
     
     
 
     //Setting Laser Power
-    rs2::device selected_device = pipeline_profile.get_device();
-    auto depth_sensor = selected_device.first<rs2::depth_sensor>();
 
-    if (depth_sensor.supports(RS2_OPTION_EMITTER_ENABLED))
-    {
-        depth_sensor.set_option(RS2_OPTION_EMITTER_ENABLED, ENABLE_REALSENSE_LASER); // Enable or disable emitter
+    try{
+        rs2::device selected_device = pipeline_profile.get_device();
+        auto depth_sensor = selected_device.first<rs2::depth_sensor>();
+
+        if (depth_sensor.supports(RS2_OPTION_EMITTER_ENABLED))
+        {
+            depth_sensor.set_option(RS2_OPTION_EMITTER_ENABLED, ENABLE_REALSENSE_LASER); // Enable or disable emitter
+        }
+        if (depth_sensor.supports(RS2_OPTION_LASER_POWER))
+        {
+            // Query min and max values:
+            //auto range = depth_sensor.get_option_range(RS2_OPTION_LASER_POWER);
+            depth_sensor.set_option(RS2_OPTION_LASER_POWER, REALSENSE_LASER_POWER); // Set  power
+        }
+
+        //Sets the gain of the IR images (sensors)
+        auto sensors = selected_device.query_sensors();
+
+        //Loops and checks if the sensor is the stereo module and if it supports gain
+        for (auto& sensor : sensors)
+        {
+            if (sensor.supports(RS2_OPTION_GAIN) && sensor.get_info(RS2_CAMERA_INFO_NAME) == std::string("Stereo Module"))
+            {
+                sensor.set_option(RS2_OPTION_GAIN, static_cast<float>(REALSENSE_GAIN)); 
+                std::cout << "Set Camera Gain" << std::endl;
+            }
+        }
+
+
     }
-    if (depth_sensor.supports(RS2_OPTION_LASER_POWER))
-    {
-        // Query min and max values:
-        //auto range = depth_sensor.get_option_range(RS2_OPTION_LASER_POWER);
-        depth_sensor.set_option(RS2_OPTION_LASER_POWER, REALSESENSE_LASER_POWER); // Set  power
+    catch (const rs2::error& e) {
+        std::cout << "Error setting laser power: " << e.what() << std::endl;
+        return false;
     }
 
-    //Aligns to left infrared stream
-    initializeAlign(RS2_STREAM_INFRARED);
     
 
-    return(true); //Properly configured
+    //Resets the pipeline:
+    //ResetRealSensePipeline();
+
+    //Aligns to left infrared stream
+    try{
+        initializeAlign(RS2_STREAM_INFRARED);
+    }
+    catch (const rs2::error& e) {
+        std::cout << "Error initializing IR Frame alignment: " << e.what() << std::endl;
+        return false;
+    }
+    
+
+    return true; //Properly configured
 
 }
+
+void SetupAndSegment::ResetRealSensePipeline() {
+    try {
+        _realSense_pipeline.stop();
+        _realSense_pipeline.start(_realSense_config); // Restart the pipeline
+        std::cout << "RealSense pipeline reset successfully." << std::endl;
+    }
+    catch (const rs2::error& e) {
+        std::cerr << "Failed to reset RealSense pipeline: " << e.what() << std::endl;
+    }
+}
+
+
 void SetupAndSegment::initializeAlign(rs2_stream stream_Type) {
     _align_to_left_ir = std::make_unique<rs2::align>(stream_Type);
 }
@@ -398,11 +457,10 @@ std::shared_ptr<SetupAndSegment::IrDetection> SetupAndSegment::findKeypointsWorl
     //Map to 3D
     if (success)
     {
-        //cv::Mat outputImage;
-        //cv::drawKeypoints(im,keypoints,outputImage, cv::Scalar(0, 255, 0), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
-        //cv::imshow("Contours", outputImage);
-        //cv::waitKey(1);	//Grabs Key Press, if q we close
-
+        cv::Mat outputImage;
+        cv::drawKeypoints(im8b,keypoints,outputImage, cv::Scalar(0, 255, 0), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
+        cv::imshow("Contours on Cropped", outputImage);
+        cv::waitKey(1);
         //Save the 3D Points
         for (size_t i = 0; i < keypoints.size(); i++)
         {
@@ -412,6 +470,7 @@ std::shared_ptr<SetupAndSegment::IrDetection> SetupAndSegment::findKeypointsWorl
             int xInt = static_cast<int>(std::round(x));
             int yInt = static_cast<int>(std::round(y));
 
+            
             if (y < m_depthCamRoiUpperRow || y > m_depthCamRoiLowerRow || x < m_depthCamRoiLeftCol || x > m_depthCamRoiRightCol) {
                 if (m_logLevel == LogLevel::Verbose)
                     LOG << "Actually out of bounds";
