@@ -34,14 +34,15 @@ private:
 
 	bool configurePort(); //Sets up port parameters (e.g. baud rate, byte size etc.)
 	bool checkLineTag(std::string& lineTag, std::string& serialLine); //Checks whether the line starts with "FSN:" or "TGA:"
-	void readLines(); //Reads a lines of force sensors up until "\n", runs on one thread
+	void readLines(std::queue<std::string>& sensor_queue, std::string& lineTag, std::mutex& mutex_ptr, std::condition_variable& reading_arrived, std::atomic<bool>& run_thread); //Reads a lines of force sensors up until "\n", runs on one thread
 
 																	  //Threading setup
-	std::queue<std::string> _forceSenseQueue, _tempImuQueue; //Two queues that the thread pushes shell sensor readings to, depends on line read
-	std::mutex _sensorReadingMutex;
+	std::queue<std::string> _forceSenseQueue, _tempImuQueue; //Two queues that the thread pushes shell sensor readings to
+	std::mutex _forceSenseMutex,_tempImuMutex;
 	std::condition_variable _ForceSenseReadingArrived, _tempImuReadingArrived;
-	std::shared_ptr<std::thread> _senseReadingThread;
-	std::atomic<bool> _runThread = true;
+	std::shared_ptr<std::thread> _forceSense_Thread, _tempImu_Thread;
+	std::atomic<bool> _runForceSense_Thread = true;
+	std::atomic<bool> _runTempImu_Thread = true;
 	std::string _forceSenseTag = FORCESENSOR_TAG;
 	std::string _tempImuTag = TEMPIMU_TAG;
 

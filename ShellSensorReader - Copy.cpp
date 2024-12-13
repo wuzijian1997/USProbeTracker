@@ -9,23 +9,33 @@ ShellSensorReader::~ShellSensorReader()
 {
 	//Closes force sensor threading things
 	{
-		std::lock_guard<std::mutex> lock(_sensorReadingMutex);
-		_runThread = false;
+		std::lock_guard<std::mutex> lock(_forceSenseMutex);
+		_runForceSense_Thread = false;
 	}
 
-	if (_senseReadingThread && _senseReadingThread->joinable())
+	if (_forceSense_Thread && _forceSense_Thread->joinable())
 	{
-		_senseReadingThread->join();
+		_forceSense_Thread->join();
 	}
 
 	while (!_forceSenseQueue.empty()) {
 		_forceSenseQueue.pop();
 	}
 
+	//Closes IMU sensor threading things
+	{
+		std::lock_guard<std::mutex> lock(_tempImuMutex);
+		_runTempImu_Thread = false;
+	}
+
+	if (_tempImu_Thread && _tempImu_Thread->joinable())
+	{
+		_tempImu_Thread->join();
+	}
+
 	while (!_tempImuQueue.empty()) {
 		_tempImuQueue.pop();
 	}
-
 
 	//Closes the serial port
 	if (_isSerialPortOpen)
@@ -54,9 +64,15 @@ bool ShellSensorReader::initialize()
 	{
 		//Starts the reading threads
 
-		//Starts Sensor Reading Thread
-		_runThread = true;
-		_senseReadingThread = std::make_shared<std::thread>([this]() {readLines();});		
+		//Starts the force sensor thread
+		_runForceSense_Thread = true;
+		_forceSense_Thread= std::make_shared<std::thread>([this]() {readLines(_forceSenseQueue, _forceSenseTag, _forceSenseMutex, _ForceSenseReadingArrived, _runForceSense_Thread); });
+		
+		//Starts the temperature/IMU reading thread
+		//Starts the force sensor thread
+		_runTempImu_Thread = true;
+		_tempImu_Thread = std::make_shared<std::thread>([this]() {readLines(_tempImuQueue, _tempImuTag, _tempImuMutex, _tempImuReadingArrived, _runTempImu_Thread); });
+
 
 	}
 	
@@ -101,7 +117,7 @@ bool ShellSensorReader::configurePort()
 }
 
 
-void ShellSensorReader::readLines()
+void ShellSensorReader::readLines(std::queue<std::string>& sensor_queue,std::string& lineTag, std::mutex& mutex_ptr,std::condition_variable& reading_arrived,std::atomic<bool>& run_thread)
 {
 	if (!_isSerialPortOpen)
 	{
@@ -118,7 +134,7 @@ void ShellSensorReader::readLines()
 	std::chrono::steady_clock::time_point last_time = std::chrono::steady_clock::now();
 	std::chrono::steady_clock::time_point curr_time = std::chrono::steady_clock::now();	
 
-	while (_runThread)
+	while (run_thread)
 	{
 		//Read it into bytesRead, and then check if it is greater than 0
 		if (ReadFile(_serialHandle, &tempChar, 1, &bytesRead, nullptr) && bytesRead > 0)
@@ -127,41 +143,23 @@ void ShellSensorReader::readLines()
 			if (tempChar == '\n') //New line character is met, we clear the line buffer, check if it is a force line, and append to the queue if it is
 			{
 				std::string line = _buffer;
-				_buffer.clear(); //Clears the buffer
+				_buffer.clear();
 
-				//Check if it is line with name _forceSenseTag, if it is push to the force sensor queue
-				//Checking for force line
-				if (checkLineTag(_forceSenseTag, line))
+				//Check if it is line with name "lineTag" if it is, we push to the sensor queue
+				if (checkLineTag(lineTag, line))
 				{
 					//Strips the tag from the string
-					line.erase(0, _forceSenseTag.length());
-					//Writes force reading to the queue
+					line.erase(0, lineTag.length());
 					{
-						std::lock_guard<std::mutex> l{_sensorReadingMutex};
-						if (_forceSenseQueue.size() > 10) {
-							_forceSenseQueue.pop(); // Discard the oldest readings if the queue is too large
+						std::lock_guard<std::mutex> l{ mutex_ptr };
+						if (sensor_queue.size() > 10) {
+							sensor_queue.pop(); // Discard the oldest readings if the queue is too large
 						}
-						_forceSenseQueue.push(line);
+						sensor_queue.push(line);
 					}
 					//Notifies the recipient
-					_ForceSenseReadingArrived.notify_one();
+					reading_arrived.notify_one(); 
 
-				}
-
-				else if(checkLineTag(_tempImuTag, line))
-				{
-					//Strips the tag from the string
-					line.erase(0, _tempImuTag.length());
-					//Writes force reading to the queue
-					{
-						std::lock_guard<std::mutex> l{ _sensorReadingMutex };
-						if (_tempImuQueue.size() > 10) {
-							_tempImuQueue.pop(); // Discard the oldest readings if the queue is too large
-						}
-						_tempImuQueue.push(line);
-					}
-					//Notifies the recipient
-					_tempImuReadingArrived.notify_one();
 				}
 
 			}
@@ -173,7 +171,7 @@ void ShellSensorReader::readLines()
 		else
 		{
 			curr_time = std::chrono::steady_clock::now(); //updates curr time of unsuccessful read
-			auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_time - last_time).count();
+			auto elapsed_ms = std::chrono::duration_cast<std::chrono::microseconds>(curr_time - last_time).count();
 			if ((int)elapsed_ms > SHELLSENSOR_TIMEOUT)
 			{
 				std::cout << "Serial Timout Triggered" << std::endl;
@@ -193,11 +191,11 @@ bool ShellSensorReader::checkLineTag(std::string& lineTag,std::string& serialLin
 }
 
 
-//Methods to get the force and Temp/IMU lines from the two threading functions
+//Methods to get the force and IMU lines from the two threading functions
 
 void ShellSensorReader::getForceString(std::string& force_string)
 {
-	std::unique_lock<std::mutex> lock{ _sensorReadingMutex };
+	std::unique_lock<std::mutex> lock{ _forceSenseMutex };
 	//Returns empty frame if waiting longer than 20 ms (50 Hz)
 	if (!_ForceSenseReadingArrived.wait_for(lock, std::chrono::milliseconds(_timeout), [this]() { return !_forceSenseQueue.empty(); }))
 	{
@@ -206,7 +204,6 @@ void ShellSensorReader::getForceString(std::string& force_string)
 		lock.unlock();
 		return;
 	}
-
 	if (!_forceSenseQueue.empty())
 	{
 		//Grab frame if not empty queue
@@ -222,7 +219,7 @@ void ShellSensorReader::getForceString(std::string& force_string)
 
 void ShellSensorReader::getTempIMUString(std::string& temp_imu_string)
 {
-	std::unique_lock<std::mutex> lock{ _sensorReadingMutex };
+	std::unique_lock<std::mutex> lock{ _tempImuMutex };
 	//Returns empty frame if waiting longer than 20 ms (50 Hz)
 	if (!_tempImuReadingArrived.wait_for(lock, std::chrono::milliseconds(_timeout), [this]() { return !_tempImuQueue.empty(); }))
 	{
@@ -231,7 +228,6 @@ void ShellSensorReader::getTempIMUString(std::string& temp_imu_string)
 		lock.unlock();
 		return;
 	}
-
 	if (!_tempImuQueue.empty())
 	{
 		//Grab frame if not empty queue

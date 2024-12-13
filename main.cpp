@@ -16,12 +16,19 @@ cv::Mat ir_mat_left, ir_mat_right; //OpenCV Matrices of right/left
 
 cv::Mat US_frame;
 
-bool continueUS = true;;
+bool continueUS = true;
+
+//std::chrono::steady_clock::time_point last_time;
+//std::chrono::steady_clock::time_point curr_time;
+//last_time = std::chrono::steady_clock::now();
+//curr_time = std::chrono::steady_clock::now();
+//auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_time - last_time).count();
+//std::cout << "dt:" << elapsed_ms << std::endl;
 
 int main()
 {
 	//Constructs the ShellSensor Serial Streamer Object
-	ShellSensorReader shellReader(SHELLSENSOR_PORTNAME, SHELLSENSOR_BAUDRATE,20); //Sets the baud rate, the timeout is how long we wait for the thread before returning empty, standard is 20 ms
+	ShellSensorReader shellReader(SHELLSENSOR_PORTNAME, SHELLSENSOR_BAUDRATE,10); //Sets the baud rate, timeout is wait time thread before returning NaN's
 	//Initializes parameters, and checks if the port is connected
 	if (!shellReader.initialize())
 	{
@@ -34,8 +41,10 @@ int main()
 	while (true)
 	{
 		//Gets the strings of data from the force sensor
+		
 		shellReader.getForceString(force_string);
 		shellReader.getTempIMUString(temp_imu_string);
+
 		std::cout << "Force String: " << force_string << std::endl;
 		std::cout << "Temp/IMU String: " << temp_imu_string << std::endl;
 
@@ -45,7 +54,7 @@ int main()
 
 
 	//Inits the US Video Streamer Object and stream thread
-	//USVideoStreaming USStreamer(true,20); //Shows the US stream when true, 20 ms timeout for reading from thread
+	//USVideoStreaming USStreamer(true,10); //Shows the US stream when true, 20 ms timeout for reading from thread
 	//
 	//while (true)
 	//{
