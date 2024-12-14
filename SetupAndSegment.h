@@ -64,6 +64,9 @@ const double NEAR_CLIP = 0.25f;
 const double FAR_CLIP = 1.7f; //Average Arm Span is 65 cm, we want the tracker to be about the same distance from eyes to hand
 const double DEFAULT_DEPTH_SCALE = 1000.0f; //Converts raw depth values to meters, must update the value using the setDepthScale() method
 
+const float TEMPORAL_DEPTH_FILTER_ALPHA = 0.2f;
+const float TEMPORAL_DEPTH_FILTER_DELTA = 17;
+
 class SetupAndSegment
 {
 public:
@@ -142,8 +145,9 @@ public:
 	//****Vars for Blob Detection*****
 	//Initialize the blob detection object
 
-	cv::SimpleBlobDetector::Params _blob_params;
-	cv::Ptr<cv::SimpleBlobDetector> _detector;
+	//Temporal Filter Applied to Depth before sent to findkeypoints worldframe
+	rs2::temporal_filter _temp_filter; 
+	
 
 private:
 	std::function<void(const std::array<double, 2>&, std::array<double, 2>&)> m_imagePointToCameraUnitPlane;
@@ -151,6 +155,8 @@ private:
 	bool blobDetect(cv::Mat& im, std::vector<cv::KeyPoint>& keypoints);
 	bool contourDetect(cv::Mat& im, std::vector<cv::KeyPoint>& keypoints);
 	void ResetRealSensePipeline();
+	//Method to wait for new frame arrival, runs on separate thread, also converts data to type expected by findKeyPoints() function
+	void ReadFrames(); 
 
 	// Debugging
 	LogLevel m_logLevel;
@@ -161,7 +167,6 @@ private:
 	//****Vars for Contour Detection*****
 	cv::cuda::GpuMat _d_im, _d_imBW; //d_im is the image in GPU, d_imBW is the binary image
 	cv::Mat _imBW; //Binary image
-
 	std::vector<std::vector<cv::Point>> _contours; //contours
 
 	double _area, _cvxArea, _cvxity, _circy;
@@ -193,7 +198,18 @@ private:
 	std::mutex m_paramMutex;
 
 	
-	
+	cv::SimpleBlobDetector::Params _blob_params;
+	cv::Ptr<cv::SimpleBlobDetector> _detector;
+
+
+	//Frame Reading Thread Setup 
+	std::queue<rs2::frameset> _irLeftFrameQueue,_irRightFrameQueue;
+	std::queue<rs2::depth_frame> _depthFrameQueue, _depthFrameFilteredQueue;
+	std::queue<std::unique_ptr <std::vector<uint16_t>>> _depthPtrQueue, _irLeftPtrQueue;
+	std::mutex _frameMutex;
+	std::condition_variable _frameArrivedVar;
+	std::shared_ptr<std::thread> _frame_Thread;
+	std::atomic<bool> _runFrame_Thread = true;
 
 
 };

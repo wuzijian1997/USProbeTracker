@@ -1,8 +1,44 @@
 #include "SetupAndSegment.h"
 
+//Inits the IR tracker:
+
+SetupAndSegment::SetupAndSegment(int width, int height, LogLevel logLevel)
+    : m_imWidth(width)
+    , m_imHeight(height)
+    , m_logLevel(logLevel)
+{
+    m_xMaxCrop = width - 1;
+    m_yMaxCrop = height - 1;
+
+    // Default to normalized coordinates
+    m_imagePointToCameraUnitPlane = [width, height](const std::array<double, 2>& uv, std::array<double, 2>& xy) {
+        xy[0] = uv[0] / width;
+        xy[1] = uv[1] / height;
+    };
+    //****Vars for Blob Detection*****
+    _blob_params.filterByColor = true; // Filter by brightness. Markers should be bright
+    _blob_params.blobColor = 255;
+    _blob_params.minThreshold = BLOB_MIN_THRESHOLD;
+    _blob_params.maxThreshold = BLOB_MAX_THRESHOLD;
+    _blob_params.filterByArea = true;
+    _blob_params.minArea = BLOB_MIN_AREA; // size in pixels
+    _blob_params.maxArea = BLOB_MAX_AREA;
+    _blob_params.filterByConvexity = true;
+    _blob_params.minConvexity = BLOB_MIN_CONVEXITY;
+
+    _blob_params.minDistBetweenBlobs = BLOB_MIN_DSTANCE_BETWEEN;
+    _blob_params.filterByInertia = false;
+    _blob_params.filterByCircularity = false;
+
+    // Create detector
+    _detector = cv::SimpleBlobDetector::create(_blob_params);
+
+}
+
+
 
 //*****************************Equipment Setup Methods*********************************
-//GPU Check and Setup
+//GPU Check and Setup (if needed)
 bool SetupAndSegment::GPUSetup()
 {
 	bool GPU_Found = false; //Set to true if we have GPU device
@@ -76,8 +112,9 @@ bool SetupAndSegment::GPUSetup()
     return(GPU_Found);
 }
 
-//RealSense Check and Setup
 
+
+//RealSense Check and Setup
 bool SetupAndSegment::RealSenseSetup()
 {
     std::cout << "************************************" << std::endl;
@@ -141,9 +178,7 @@ bool SetupAndSegment::RealSenseSetup()
     }
 
     
-
-    
-    
+      
 
     //Setting Laser Power
 
@@ -196,11 +231,15 @@ bool SetupAndSegment::RealSenseSetup()
         return false;
     }
     
+    //Configures the temporal depth filter for the findkeypoints function
+    _temp_filter.set_option(RS2_OPTION_FILTER_SMOOTH_ALPHA, TEMPORAL_DEPTH_FILTER_ALPHA);
+    _temp_filter.set_option(RS2_OPTION_FILTER_SMOOTH_DELTA, TEMPORAL_DEPTH_FILTER_DELTA);
 
     return true; //Properly configured
 
 }
 
+//Helper functions for equipment
 void SetupAndSegment::ResetRealSensePipeline() {
     try {
         _realSense_pipeline.stop();
@@ -217,58 +256,37 @@ void SetupAndSegment::initializeAlign(rs2_stream stream_Type) {
     _align_to_left_ir = std::make_unique<rs2::align>(stream_Type);
 }
 
-
-//Method to get frames from camera sensor and filter the depth frame
-//void SetupAndSegment::grabSensorFrames()
-//{
-//
-//}
-
-//******************************Marker Segmentation****************************
-
-//Inits the IR tracker:
-
-SetupAndSegment::SetupAndSegment(int width, int height, LogLevel logLevel)
-    : m_imWidth(width)
-    , m_imHeight(height)
-    , m_logLevel(logLevel)
-{
-    m_xMaxCrop = width - 1;
-    m_yMaxCrop = height - 1;
-
-    // Default to normalized coordinates
-    m_imagePointToCameraUnitPlane = [width, height](const std::array<double, 2>& uv, std::array<double, 2>& xy) {
-        xy[0] = uv[0] / width;
-        xy[1] = uv[1] / height;
-    };
-    //****Vars for Blob Detection*****
-    _blob_params.filterByColor = true; // Filter by brightness. Markers should be bright
-    _blob_params.blobColor = 255;
-    _blob_params.minThreshold = BLOB_MIN_THRESHOLD;
-    _blob_params.maxThreshold = BLOB_MAX_THRESHOLD;
-    _blob_params.filterByArea = true;
-    _blob_params.minArea = BLOB_MIN_AREA; // size in pixels
-    _blob_params.maxArea = BLOB_MAX_AREA;
-    _blob_params.filterByConvexity = true;
-    _blob_params.minConvexity = BLOB_MIN_CONVEXITY;
-
-    _blob_params.minDistBetweenBlobs = BLOB_MIN_DSTANCE_BETWEEN;
-    _blob_params.filterByInertia = false;
-    _blob_params.filterByCircularity = false;
-
-    // Create detector
-    _detector = cv::SimpleBlobDetector::create(_blob_params);
-
-}
-
 void SetupAndSegment::setCameraIntrinsics(std::function<void(const std::array<double, 2>&, std::array<double, 2>&)> intrinsics) {
     m_imagePointToCameraUnitPlane = std::move(intrinsics);
 }
 
+//Sets up the camera boundaries
+void SetupAndSegment::setCameraBoundaries(int roiUpperRow, int roiLowerRow, int roiLeftCol, int roiRightCol, double nearClipPlane, double farClipPlane) {
+    m_depthCamRoiUpperRow = roiUpperRow;
+    m_depthCamRoiLowerRow = roiLowerRow;
+    m_depthCamRoiLeftCol = roiLeftCol;
+    m_depthCamRoiRightCol = roiRightCol;
+    m_depthNearClip = nearClipPlane;
+    m_depthFarClip = farClipPlane;
+
+    // Update the ROI so it cuts off at the correct boundaries if it is currently searching the whole image
+    if (m_xMaxCrop == m_imWidth - 1 && m_yMaxCrop == m_imHeight - 1 && m_xMinCrop == 0 && m_yMinCrop == 0) {
+        setROI(m_xMinCrop, m_xMaxCrop, m_yMinCrop, m_yMaxCrop);
+    }
+
+
+    if (m_logLevel == LogLevel::VeryVerbose)
+        LOG << "Top row " << m_depthCamRoiUpperRow << ", bottom row " << m_depthCamRoiLowerRow << ", left col " << m_depthCamRoiLeftCol << ", right col " << m_depthCamRoiRightCol << ", near " << m_depthNearClip << ", far " << m_depthFarClip;
+}
+
+
+//******************************Marker Segmentation****************************
+
+
+
 SetupAndSegment::LogLevel SetupAndSegment::getLogLevel() {
     return m_logLevel;
 }
-
 void SetupAndSegment::setDetectionMode(DetectionMode mode) {
     std::scoped_lock<std::mutex> l(m_paramMutex);
     m_mode = mode;
@@ -297,25 +315,6 @@ Eigen::Vector4i SetupAndSegment::setROI(int xMin, int xMax, int yMin, int yMax) 
     m_yMaxCrop = yMax;
 
     return Eigen::Vector4i{ xMin, xMax, yMin, yMax };
-}
-
-//Sets up the camera boundaries
-void SetupAndSegment::setCameraBoundaries(int roiUpperRow, int roiLowerRow, int roiLeftCol, int roiRightCol, double nearClipPlane, double farClipPlane) {
-    m_depthCamRoiUpperRow = roiUpperRow;
-    m_depthCamRoiLowerRow = roiLowerRow;
-    m_depthCamRoiLeftCol = roiLeftCol;
-    m_depthCamRoiRightCol = roiRightCol;
-    m_depthNearClip = nearClipPlane;
-    m_depthFarClip = farClipPlane;
-
-    // Update the ROI so it cuts off at the correct boundaries if it is currently searching the whole image
-    if (m_xMaxCrop == m_imWidth - 1 && m_yMaxCrop == m_imHeight - 1 && m_xMinCrop == 0 && m_yMinCrop == 0) {
-        setROI(m_xMinCrop, m_xMaxCrop, m_yMinCrop, m_yMaxCrop);
-    }
-
-
-    if (m_logLevel == LogLevel::VeryVerbose)
-        LOG << "Top row " << m_depthCamRoiUpperRow << ", bottom row " << m_depthCamRoiLowerRow << ", left col " << m_depthCamRoiLeftCol << ", right col " << m_depthCamRoiRightCol << ", near " << m_depthNearClip << ", far " << m_depthFarClip;
 }
 
 
@@ -388,15 +387,15 @@ std::shared_ptr<SetupAndSegment::IrDetection> SetupAndSegment::findKeypointsWorl
     auto detection = std::make_shared<IrDetection>();
 
     int xMinCrop, yMinCrop, xMaxCrop, yMaxCrop, width, height;
-    {
-        std::scoped_lock<std::mutex> l(m_paramMutex);
-        xMinCrop = m_xMinCrop;
-        yMinCrop = m_yMinCrop;
-        xMaxCrop = m_xMaxCrop;
-        yMaxCrop = m_yMaxCrop;
-        width = m_imWidth;
-        height = m_imHeight;
-    }
+    //{
+        //std::scoped_lock<std::mutex> l(m_paramMutex);  //Maybe change this back
+    xMinCrop = m_xMinCrop;
+    yMinCrop = m_yMinCrop;
+    xMaxCrop = m_xMaxCrop;
+    yMaxCrop = m_yMaxCrop;
+    width = m_imWidth;
+    height = m_imHeight;
+    //}
 
     //Creates cv Mat image from data
     cv::Mat im = cv::Mat(_imagesz, CV_8UC1, irIm->data(), 0);
@@ -411,40 +410,6 @@ std::shared_ptr<SetupAndSegment::IrDetection> SetupAndSegment::findKeypointsWorl
 
     cv::Rect roi(xMinCrop, yMinCrop, xMaxCrop - xMinCrop + 1, yMaxCrop - yMinCrop + 1);
     cv::Mat im8b=im(roi).clone(); //Crops the image to the ROI
-    //const void* depthData = depthFrame.get_data(); // Retrieve the data once
-    //if (!depthFrame || depthData == nullptr) {
-    //    return detection; // Return empty depth detection
-    //}
-    //const uint16_t* depthMap = static_cast<const uint16_t*>(depthData);
-
-    //Scales Contrast so it uses whole range
-    //No Cropping for now
-    //Uses GPU
-    //d_im.upload(im);
-    //d_im8b.create(im.size(), CV_8UC1);
-    //cv::cuda::threshold(d_im, d_im8b, KEYPOINTS_MAX_INTENSITY, KEYPOINTS_MAX_INTENSITY, cv::THRESH_TRUNC);
-    //cv::cuda::multiply(d_im8b, cv::Scalar(255.0f / KEYPOINTS_MAX_INTENSITY), d_im8b);
-    //d_im8b.download(im);
-    //cv::imshow("Thresholded", im);
-    //char c = cv::waitKey(1);	//Grabs Key Press, if q we close
-
-    /*
-    *Uncomment if using CPU
-    cv::Mat im8b = cv::Mat(_imagesz, CV_8UC1); //Scaled image
-
-    for (int x = 0; x < im.cols; x++) 
-    {
-        for (int y = 0; y < im.rows; y++) 
-        {
-            uint16_t el = im.at<uint16_t>(y, x);
-            if (el > 1000)
-                im8b.at<uchar>(y, x) = 255; // Maximum intensity for values > 1000
-            else
-                im8b.at<uchar>(y, x) = (uchar)(el * 255 / 1000); // Scale contrast
-        }
-    }
-    */
-
 
 
     bool success = false;
@@ -457,10 +422,11 @@ std::shared_ptr<SetupAndSegment::IrDetection> SetupAndSegment::findKeypointsWorl
     //Map to 3D
     if (success)
     {
-        cv::Mat outputImage;
+        /*cv::Mat outputImage;
         cv::drawKeypoints(im8b,keypoints,outputImage, cv::Scalar(0, 255, 0), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
         cv::imshow("Contours on Cropped", outputImage);
-        cv::waitKey(1);
+        cv::waitKey(1);*/
+
         //Save the 3D Points
         for (size_t i = 0; i < keypoints.size(); i++)
         {
@@ -496,7 +462,7 @@ std::shared_ptr<SetupAndSegment::IrDetection> SetupAndSegment::findKeypointsWorl
 
             //Find the diameter of the blob in the world coordinates
             auto left = (x - keypoints[i].size / 2 > 0) ? x - keypoints[i].size / 2 : 0;
-            auto right = (x + keypoints[i].size / 2 < REALSENSE_WIDTH) ? x + keypoints[i].size / 2 : REALSENSE_WIDTH;
+            auto right = (x + keypoints[i].size / 2 < width) ? x + keypoints[i].size / 2 : width;
             std::array<double, 2> xyL = { 0, 0 };
             std::array<double, 2> uvL = { left , y };
             m_imagePointToCameraUnitPlane(uvL, xyL);
@@ -522,5 +488,14 @@ std::shared_ptr<SetupAndSegment::IrDetection> SetupAndSegment::findKeypointsWorl
 
 
     return detection;
+
+}
+
+
+
+//******************Frame Grabbing Threading Methods*********************
+
+void SetupAndSegment::ReadFrames()
+{
 
 }

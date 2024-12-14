@@ -99,7 +99,6 @@ int main()
 			//Set up tracking parameters
 			realSenseObj->setDetectionMode(SetupAndSegment::DetectionMode::Blob); //Sets the segmentation method
 			realSenseObj->setCameraBoundaries(0,REALSENSE_HEIGHT-1,0,REALSENSE_WIDTH-1,NEAR_CLIP,FAR_CLIP); //Sets the camera boundaries
-			
 			double fx = realSenseObj->_realSense_intrinsics_leftIR.fx;
 			double fy = realSenseObj->_realSense_intrinsics_leftIR.fy;
 			double cx = realSenseObj->_realSense_intrinsics_leftIR.ppx;
@@ -179,9 +178,11 @@ int main()
 					std::cout << "Error: Failed to get depth frame." << std::endl;
 					continue;
 				}
+				rs2::frame depth_filtered = depth_frame; 
+				depth_filtered = realSenseObj->_temp_filter.process(depth_filtered);
 
 				//Converts depth frame to vector representation
-				auto depth_data = reinterpret_cast<const uint16_t*>(depth_frame.get_data());
+				auto depth_data = reinterpret_cast<const uint16_t*>(depth_filtered.get_data());
 				std::vector<uint16_t> depth_vector(depth_data, depth_data + (REALSENSE_HEIGHT * REALSENSE_WIDTH));
 				auto depth_ptr = std::make_unique<std::vector<uint16_t>>(std::move(depth_vector));
 
