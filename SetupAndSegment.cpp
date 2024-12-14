@@ -36,6 +36,40 @@ SetupAndSegment::SetupAndSegment(int width, int height, LogLevel logLevel)
 }
 
 
+SetupAndSegment::~SetupAndSegment()
+{
+    //Closes the threading
+    {
+        std::lock_guard<std::mutex> lock(_realSenseFrameMutex);
+        _realsenseRunFrameThread = false;
+    }
+
+    if (_realsenseFrameThread && _realsenseFrameThread->joinable())
+    {
+        _realsenseFrameThread->join();
+    }
+
+    //CLears the queues
+    while (!_irLeftFrameQueue.empty()) {
+        _irLeftFrameQueue.pop();
+    }
+    while (!_irRightFrameQueue.empty()) {
+        _irRightFrameQueue.pop();
+    }
+    while (!_depthFrameQueue.empty()) {
+        _depthFrameQueue.pop();
+    }
+    while (!_depthFilteredPtrQueue.empty()) {
+        _depthFilteredPtrQueue.pop();
+    }
+    while (!_irLeftPtrQueue.empty()) {
+        _irLeftPtrQueue.pop();
+    }
+
+    //Closes the realsense objects
+    _realSense_pipeline.stop();
+
+}
 
 //*****************************Equipment Setup Methods*********************************
 //GPU Check and Setup (if needed)
@@ -114,9 +148,10 @@ bool SetupAndSegment::GPUSetup()
 
 
 
-//RealSense Check and Setup
-bool SetupAndSegment::RealSenseSetup()
+//RealSense Check and Setup, also starts the RealSense Thread
+bool SetupAndSegment::RealSenseSetup(int timeout)
 {
+    _timeout = timeout;
     std::cout << "************************************" << std::endl;
     std::cout << "Setting Up RealSense Device(s)" << std::endl;
     if (_realSense_context.query_devices().size() == 0)
@@ -234,6 +269,12 @@ bool SetupAndSegment::RealSenseSetup()
     //Configures the temporal depth filter for the findkeypoints function
     _temp_filter.set_option(RS2_OPTION_FILTER_SMOOTH_ALPHA, TEMPORAL_DEPTH_FILTER_ALPHA);
     _temp_filter.set_option(RS2_OPTION_FILTER_SMOOTH_DELTA, TEMPORAL_DEPTH_FILTER_DELTA);
+
+
+    //Starts the thread function for the realsense (starts grabbing frames)
+    _realsenseRunFrameThread = true;
+    _realsenseFrameThread=std::make_shared<std::thread>([this]() {ReadFrames(); });
+
 
     return true; //Properly configured
 
@@ -497,5 +538,177 @@ std::shared_ptr<SetupAndSegment::IrDetection> SetupAndSegment::findKeypointsWorl
 
 void SetupAndSegment::ReadFrames()
 {
+    while (_realsenseRunFrameThread)
+    {
+        if (_realSense_pipeline.try_wait_for_frames(&_frameset, 1000))
+        {
+            //frameset = realSenseObj->_realSense_pipeline.wait_for_frames();
+        ////Error Checking 
+        //if (!frameset) {
+            std::cout << "Error: Failed to get frames from RealSense pipeline." << std::endl;
+            continue;
+        }
+
+        //Gets the IR frames
+        if (!_align_to_left_ir) {
+            std::cout << "Error: Alignment object not initialized." << std::endl;
+            continue;
+        }
+        _aligned_frameset = _align_to_left_ir->process(_frameset);
+        _ir_frame_left = _aligned_frameset.get_infrared_frame(1);
+        _ir_frame_right = _aligned_frameset.get_infrared_frame(2);
+        if (!_ir_frame_left) {
+            std::cout << "Error: Failed to get left IR frame." << std::endl;
+            continue;
+        }
+
+        //Gets the depth frame
+        rs2::depth_frame depth_frame = _aligned_frameset.get_depth_frame();
+
+        if (!depth_frame) {
+            std::cout << "Error: Failed to get depth frame." << std::endl;
+            continue;
+        }
+        rs2::frame depth_filtered = depth_frame;
+        depth_filtered = _temp_filter.process(depth_filtered);
+
+        //Converts left IR to vector representation //ToDO: Change this so I am not initializing an std:;vector<uint16_t> on every iteration
+        auto ir_data = reinterpret_cast<const uint16_t*>(_ir_frame_left.get_data());
+        std::vector<uint16_t> ir_vector(ir_data, ir_data + (REALSENSE_HEIGHT * REALSENSE_WIDTH));
+        auto ir_ptr = std::make_unique<std::vector<uint16_t>>(std::move(ir_vector));
+        
+        
+        //Converts depth frame to vector representation //ToDO: Change this so I am not initializing an std:;vector<uint16_t> on every iteration
+        auto depth_data = reinterpret_cast<const uint16_t*>(depth_filtered.get_data());
+        std::vector<uint16_t> depth_vector(depth_data, depth_data + (REALSENSE_HEIGHT * REALSENSE_WIDTH));
+        auto depth_ptr = std::make_unique<std::vector<uint16_t>>(std::move(depth_vector));
+
+        //Updates the frame queues and locks the mutex before writing to the queue and notifying
+        {
+            std::lock_guard<std::mutex> l{ _realSenseFrameMutex };
+
+            //Updates the left IR frame queue
+            if (_irLeftFrameQueue.size() > 5) {
+                _irLeftFrameQueue.pop(); // Discard the oldest frame if the queue is too large
+            }
+            _irLeftFrameQueue.push(_ir_frame_left);
+
+            //Updates the right IR frame queue
+            if (_irRightFrameQueue.size() > 5) {
+                _irRightFrameQueue.pop(); // Discard the oldest frame if the queue is too large
+            }
+            _irRightFrameQueue.push(_ir_frame_right);
+
+            //Updates the depth frame queue
+            if (_depthFrameQueue.size() > 5) {
+                _depthFrameQueue.pop(); // Discard the oldest frame if the queue is too large
+            }
+            _depthFrameQueue.push(depth_frame);
+
+            //Updates the std::unique_ptr <std::vector<uint16_t>> representation of depth and IR left
+            if (_depthFilteredPtrQueue.size() > 5) {
+                _depthFilteredPtrQueue.pop(); // Discard the oldest frame if the queue is too large
+            }
+            _depthFilteredPtrQueue.push(std::move(depth_ptr));
+
+            if (_irLeftPtrQueue.size() > 5) {
+                _irLeftPtrQueue.pop(); // Discard the oldest frame if the queue is too large
+            }
+            _irLeftPtrQueue.push(std::move(ir_ptr));
+
+        }
+        _realsenseFrameArrivedVar.notify_one();
+    }
+}
+
+
+//Method to call from main to get the realsense data
+
+bool SetupAndSegment::getRealSenseData(
+    rs2::frame& ir_frame_left, rs2::frame& ir_frame_right, 
+    rs2::depth_frame& depth_frame, 
+    std::unique_ptr <std::vector<uint16_t>>& depth_ptr, std::unique_ptr <std::vector<uint16_t>>& ir_ptr)
+{
+
+    std::unique_lock<std::mutex> lock{ _realSenseFrameMutex };
+
+    //Waits for a packet from the realsense thread
+    if (!_realsenseFrameArrivedVar.wait_for(lock, std::chrono::milliseconds(_timeout), [this]()
+        { return (!_irLeftFrameQueue.empty()) && (!_irRightFrameQueue.empty()) && (!_depthFrameQueue.empty())
+        && (!_depthFilteredPtrQueue.empty()) && (!_irLeftPtrQueue.empty()); }))
+    {
+        //We had a timeout event
+        return false;
+    }
+
+    //Gets the left IR frame
+    if (!_irLeftFrameQueue.empty())
+    {
+        //Grab frame if not empty queue
+        ir_frame_left = _irLeftFrameQueue.front();
+        _irLeftFrameQueue.pop();
+    }
+    else {
+        return false;
+    }
+
+    //Gets the right IR frame
+    if (!_irRightFrameQueue.empty())
+    {
+        //Grab frame if not empty queue
+        ir_frame_right = _irRightFrameQueue.front();
+        _irRightFrameQueue.pop();
+    }
+    else {
+        return false;
+    }
+
+    //Gets the depth frame
+    if (!_depthFrameQueue.empty())
+    {
+        //Grab frame if not empty queue
+        depth_frame = _depthFrameQueue.front();
+        _depthFrameQueue.pop();
+    }
+    else {
+        return false;
+    }
+
+    //Gets the depth filtered vector
+    if (!_depthFilteredPtrQueue.empty())
+    {
+        //Grab frame if not empty queue
+        depth_ptr = std::move(_depthFilteredPtrQueue.front());
+        _depthFilteredPtrQueue.pop();
+        if (!depth_ptr) {  // Validate unique_ptr is not nullptr
+            std::cout << "Error: depth_ptr is nullptr after move operation." << std::endl;
+            return false;
+        }
+    }
+    else {
+        return false;
+    }
+
+    //Gets the ir filtered vector
+    if (!_irLeftPtrQueue.empty())
+    {
+        //Grab frame if not empty queue
+        ir_ptr = std::move(_irLeftPtrQueue.front());
+        _irLeftPtrQueue.pop();
+
+        if (!ir_ptr) {  // Validate unique_ptr is not nullptr
+            std::cout << "Error: depth_ptr is nullptr after move operation." << std::endl;
+            return false;
+        }
+    }
+    else {
+        return false;
+    }
+
+    lock.unlock();
+    return true;
 
 }
+
+
+

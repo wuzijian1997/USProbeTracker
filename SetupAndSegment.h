@@ -36,6 +36,7 @@ const int REALSENSE_FPS=60;
 const float ENABLE_REALSENSE_LASER = 1.0f; //1 if we want the laser on
 const float REALSENSE_LASER_POWER = 50.0f;
 const float REALSENSE_GAIN = 16.0f; //Gain of IR image, key for removing noise
+const int REALSENSE_WAITFORFRAMES_DELAY = 1000; //The thread waits for 1000 ms for frames to arrive
 
 //*********2D Image Crop Constants
 const int IMAGE_X_MAXCROP = 848;
@@ -92,7 +93,7 @@ public:
 	/// @param width the width of the input image in pixels
 	/// @param height the height of the input image in pixels
 	SetupAndSegment(const int width, const int height, LogLevel logLevel = LogLevel::Silent);
-
+	~SetupAndSegment();
 
 	//****Class Vars*****
 	//RealSense config
@@ -101,6 +102,9 @@ public:
 	rs2::context _realSense_context;
 	std::unique_ptr<rs2::align> _align_to_left_ir;
 	void initializeAlign(rs2_stream stream_Type);
+	int _timeout = 20; //Amount of time we wait for the thread to update a new frame before returning empty frames
+
+
 
 	double m_depthNearClip = NEAR_CLIP;
 	double m_depthFarClip = FAR_CLIP;
@@ -112,7 +116,7 @@ public:
 
 	//*****Setup Functions*****
 	bool GPUSetup();
-	bool RealSenseSetup();
+	bool RealSenseSetup(int timeout);
 	/// Set the rectangular region of const interest in the image in which to search for the markers.
 	/// @param xMax the column of the left edge of the ROI
 	/// @param xMax the column of the right edge of the ROI
@@ -142,6 +146,9 @@ public:
 
 	LogLevel getLogLevel();
 
+	//Method to get the realsense data (ir frame left, ir frame right, depth frame, vector of depth filtered, vector of left ir
+	bool getRealSenseData(rs2::frame& ir_frame_left, rs2::frame& ir_frame_right, rs2::depth_frame& depth_frame, std::unique_ptr <std::vector<uint16_t>>& depth_ptr, std::unique_ptr <std::vector<uint16_t>>& ir_ptr);
+
 	//****Vars for Blob Detection*****
 	//Initialize the blob detection object
 
@@ -157,6 +164,12 @@ private:
 	void ResetRealSensePipeline();
 	//Method to wait for new frame arrival, runs on separate thread, also converts data to type expected by findKeyPoints() function
 	void ReadFrames(); 
+
+	
+	//Class vars used in ReadFrames
+	rs2::frameset _frameset, _aligned_frameset;
+	rs2::frame _ir_frame_left, _ir_frame_right;
+
 
 	// Debugging
 	LogLevel m_logLevel;
@@ -204,12 +217,12 @@ private:
 
 	//Frame Reading Thread Setup 
 	std::queue<rs2::frameset> _irLeftFrameQueue,_irRightFrameQueue;
-	std::queue<rs2::depth_frame> _depthFrameQueue, _depthFrameFilteredQueue;
-	std::queue<std::unique_ptr <std::vector<uint16_t>>> _depthPtrQueue, _irLeftPtrQueue;
-	std::mutex _frameMutex;
-	std::condition_variable _frameArrivedVar;
-	std::shared_ptr<std::thread> _frame_Thread;
-	std::atomic<bool> _runFrame_Thread = true;
+	std::queue<rs2::depth_frame> _depthFrameQueue;
+	std::queue<std::unique_ptr <std::vector<uint16_t>>> _depthFilteredPtrQueue, _irLeftPtrQueue;
+	std::mutex _realSenseFrameMutex;
+	std::condition_variable _realsenseFrameArrivedVar;
+	std::shared_ptr<std::thread> _realsenseFrameThread;
+	std::atomic<bool> _realsenseRunFrameThread = true;
 
 
 };
