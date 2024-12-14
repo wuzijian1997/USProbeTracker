@@ -36,6 +36,9 @@
     <ClCompile Include="ShellSensorReader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="RealSense.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SetupAndSegment.h">
@@ -63,6 +66,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="ShellSensorReader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="RealSense.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

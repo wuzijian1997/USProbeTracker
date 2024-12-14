@@ -32,7 +32,7 @@
 //**********RealSense Constants***************
 const int REALSENSE_WIDTH = 848;
 const int REALSENSE_HEIGHT = 480;
-const int REALSENSE_FPS=60;
+const int REALSENSE_FPS=90;
 const float ENABLE_REALSENSE_LASER = 1.0f; //1 if we want the laser on
 const float REALSENSE_LASER_POWER = 50.0f;
 const float REALSENSE_GAIN = 16.0f; //Gain of IR image, key for removing noise
@@ -208,7 +208,7 @@ private:
 	double m_depth_scale= DEFAULT_DEPTH_SCALE; //depth scale that we use
 
 	// Thread safety
-	std::mutex m_paramMutex;
+	//std::mutex m_paramMutex;
 
 	
 	cv::SimpleBlobDetector::Params _blob_params;
@@ -216,7 +216,7 @@ private:
 
 
 	//Frame Reading Thread Setup 
-	std::queue<rs2::frameset> _irLeftFrameQueue,_irRightFrameQueue;
+	std::queue<rs2::frame> _irLeftFrameQueue,_irRightFrameQueue;
 	std::queue<rs2::depth_frame> _depthFrameQueue;
 	std::queue<std::unique_ptr <std::vector<uint16_t>>> _depthFilteredPtrQueue, _irLeftPtrQueue;
 	std::mutex _realSenseFrameMutex;

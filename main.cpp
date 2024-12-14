@@ -104,17 +104,17 @@ int main()
 			//Set up tracking parameters
 			realSenseObj->setDetectionMode(SetupAndSegment::DetectionMode::Blob); //Sets the segmentation method
 			realSenseObj->setCameraBoundaries(0,REALSENSE_HEIGHT-1,0,REALSENSE_WIDTH-1,NEAR_CLIP,FAR_CLIP); //Sets the camera boundaries
-			double fx = realSenseObj->_realSense_intrinsics_leftIR.fx;
-			double fy = realSenseObj->_realSense_intrinsics_leftIR.fy;
-			double cx = realSenseObj->_realSense_intrinsics_leftIR.ppx;
-			double cy = realSenseObj->_realSense_intrinsics_leftIR.ppy;
+			//double fx = realSenseObj->_realSense_intrinsics_leftIR.fx;
+			//double fy = realSenseObj->_realSense_intrinsics_leftIR.fy;
+			//double cx = realSenseObj->_realSense_intrinsics_leftIR.ppx;
+			//double cy = realSenseObj->_realSense_intrinsics_leftIR.ppy;
 
-			//Sets the camera intinsics function
-			realSenseObj->setCameraIntrinsics([&](const std::array<double, 2>& uv, std::array<double, 2>& xy) {
-				xy[0] = (uv[0] - cx) / fx; //Normalized x-coordinate
-				xy[1] = (uv[1] - cy) / fy; //Normalized y-coordinate
+			////Sets the camera intinsics function
+			//realSenseObj->setCameraIntrinsics([&](const std::array<double, 2>& uv, std::array<double, 2>& xy) {
+			//	xy[0] = (uv[0] - cx) / fx; //Normalized x-coordinate
+			//	xy[1] = (uv[1] - cy) / fy; //Normalized y-coordinate
 
-				});
+			//	});
 			std::cout << "Object Init Successful" << std::endl;
 
 			//Set up the pose calculator
@@ -139,9 +139,10 @@ int main()
 			//cv::Mat rvec;
 			
 			//Execution Loop
+			bool data_returned = false;
 			while (1)
 			{
-				realSenseObj->getRealSenseData(ir_frame_left, ir_frame_right, depth_frame, depth_ptr, ir_ptr);
+				data_returned=realSenseObj->getRealSenseData(ir_frame_left, ir_frame_right, depth_frame, depth_ptr, ir_ptr);
 				//************Grabbing RealSense Frames***************
 
 				//if(!realSenseObj->_realSense_pipeline.try_wait_for_frames(&frameset,1000))
@@ -192,8 +193,20 @@ int main()
 				//std::vector<uint16_t> depth_vector(depth_data, depth_data + (REALSENSE_HEIGHT * REALSENSE_WIDTH));
 				//auto depth_ptr = std::make_unique<std::vector<uint16_t>>(std::move(depth_vector));
 
+				if (data_returned)
+				{
+					ir_mat_left = cv::Mat(cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT), CV_8UC1, (void*)ir_frame_left.get_data());
+					cv::imshow("left ir", ir_mat_left);
+					char c = cv::waitKey(1);	//grabs key press, if q we close
+					if (c == 'q')
+					{
+						break;
+
+					}
+
+				}
 				////Converts IR to OpenCV Mat:
-				ir_mat_left = cv::Mat(cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT), CV_8UC1, (void*)ir_frame_left.get_data());
+				//ir_mat_left = cv::Mat(cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT), CV_8UC1, (void*)ir_frame_left.get_data());
 				////ir_mat_right = cv::Mat(cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT), CV_8UC1, (void*)ir_frame_right.get_data());
 
 				//auto detection = realSenseObj->findKeypointsWorldFrame(std::move(ir_ptr), std::move(depth_ptr));
@@ -204,13 +217,13 @@ int main()
 				//	cv::circle(ir_mat_left, cv::Point(coord[0], coord[1]), 3, cv::Scalar(0, 0, 255), -1);
 				//}
 
-				cv::imshow("left ir", ir_mat_left);
-				char c = cv::waitKey(1);	//grabs key press, if q we close
-				if (c == 'q')
-				{
-					break;
+				//cv::imshow("left ir", ir_mat_left);
+				//char c = cv::waitKey(1);	//grabs key press, if q we close
+				//if (c == 'q')
+				//{
+				//	break;
 
-				}
+				//}
 
 
 				//Finding Pose

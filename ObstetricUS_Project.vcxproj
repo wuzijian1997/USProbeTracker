@@ -151,6 +151,7 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="pch.cpp" />
     <ClCompile Include="PoseTracker.cpp" />
+    <ClCompile Include="RealSense.cpp" />
     <ClCompile Include="SetupAndSegment.cpp" />
     <ClCompile Include="ShellSensorReader.cpp" />
     <ClCompile Include="USVideoStreaming.cpp" />
@@ -162,6 +163,7 @@
     <ClInclude Include="pch.h" />
     <ClInclude Include="PoseTracker.h" />
     <ClInclude Include="readerwriterqueue.h" />
+    <ClInclude Include="RealSense.h" />
     <ClInclude Include="SetupAndSegment.h" />
     <ClInclude Include="ShellSensorReader.h" />
     <ClInclude Include="USVideoStreaming.h" />

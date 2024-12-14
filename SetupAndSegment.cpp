@@ -67,7 +67,9 @@ SetupAndSegment::~SetupAndSegment()
     }
 
     //Closes the realsense objects
+    _realSense_config.disable_all_streams();
     _realSense_pipeline.stop();
+    
 
 }
 
@@ -329,7 +331,7 @@ SetupAndSegment::LogLevel SetupAndSegment::getLogLevel() {
     return m_logLevel;
 }
 void SetupAndSegment::setDetectionMode(DetectionMode mode) {
-    std::scoped_lock<std::mutex> l(m_paramMutex);
+    //std::scoped_lock<std::mutex> l(m_paramMutex);
     m_mode = mode;
 }
 
@@ -349,7 +351,7 @@ Eigen::Vector4i SetupAndSegment::setROI(int xMin, int xMax, int yMin, int yMax) 
     if (m_logLevel == LogLevel::VeryVerbose)
         LOG << "Set ROI to " << xMin << ", " << xMax << ", " << yMin << ", " << yMax;
 
-    std::scoped_lock<std::mutex> l(m_paramMutex);
+    //std::scoped_lock<std::mutex> l(m_paramMutex);
     m_xMinCrop = xMin;
     m_yMinCrop = yMin;
     m_xMaxCrop = xMax;
@@ -540,53 +542,54 @@ void SetupAndSegment::ReadFrames()
 {
     while (_realsenseRunFrameThread)
     {
-        if (_realSense_pipeline.try_wait_for_frames(&_frameset, 1000))
-        {
-            //frameset = realSenseObj->_realSense_pipeline.wait_for_frames();
-        ////Error Checking 
-        //if (!frameset) {
-            std::cout << "Error: Failed to get frames from RealSense pipeline." << std::endl;
-            continue;
-        }
-
-        //Gets the IR frames
-        if (!_align_to_left_ir) {
-            std::cout << "Error: Alignment object not initialized." << std::endl;
-            continue;
-        }
-        _aligned_frameset = _align_to_left_ir->process(_frameset);
-        _ir_frame_left = _aligned_frameset.get_infrared_frame(1);
-        _ir_frame_right = _aligned_frameset.get_infrared_frame(2);
-        if (!_ir_frame_left) {
-            std::cout << "Error: Failed to get left IR frame." << std::endl;
-            continue;
-        }
-
-        //Gets the depth frame
-        rs2::depth_frame depth_frame = _aligned_frameset.get_depth_frame();
-
-        if (!depth_frame) {
-            std::cout << "Error: Failed to get depth frame." << std::endl;
-            continue;
-        }
-        rs2::frame depth_filtered = depth_frame;
-        depth_filtered = _temp_filter.process(depth_filtered);
-
-        //Converts left IR to vector representation //ToDO: Change this so I am not initializing an std:;vector<uint16_t> on every iteration
-        auto ir_data = reinterpret_cast<const uint16_t*>(_ir_frame_left.get_data());
-        std::vector<uint16_t> ir_vector(ir_data, ir_data + (REALSENSE_HEIGHT * REALSENSE_WIDTH));
-        auto ir_ptr = std::make_unique<std::vector<uint16_t>>(std::move(ir_vector));
-        
-        
-        //Converts depth frame to vector representation //ToDO: Change this so I am not initializing an std:;vector<uint16_t> on every iteration
-        auto depth_data = reinterpret_cast<const uint16_t*>(depth_filtered.get_data());
-        std::vector<uint16_t> depth_vector(depth_data, depth_data + (REALSENSE_HEIGHT * REALSENSE_WIDTH));
-        auto depth_ptr = std::make_unique<std::vector<uint16_t>>(std::move(depth_vector));
-
-        //Updates the frame queues and locks the mutex before writing to the queue and notifying
         {
             std::lock_guard<std::mutex> l{ _realSenseFrameMutex };
+            if (_realSense_pipeline.try_wait_for_frames(&_frameset, 1000))
+            {
+                //frameset = realSenseObj->_realSense_pipeline.wait_for_frames();
+            ////Error Checking 
+            //if (!frameset) {
+                std::cout << "Error: Failed to get frames from RealSense pipeline." << std::endl;
+                continue;
+            }
 
+            //Gets the IR frames
+            if (!_align_to_left_ir) {
+                std::cout << "Error: Alignment object not initialized." << std::endl;
+                continue;
+            }
+            _aligned_frameset = _align_to_left_ir->process(_frameset);
+            _ir_frame_left = _aligned_frameset.get_infrared_frame(1);
+            _ir_frame_right = _aligned_frameset.get_infrared_frame(2);
+            if (!_ir_frame_left) {
+                std::cout << "Error: Failed to get left IR frame." << std::endl;
+                continue;
+            }
+
+            //Gets the depth frame
+            rs2::depth_frame depth_frame = _aligned_frameset.get_depth_frame();
+
+            if (!depth_frame) {
+                std::cout << "Error: Failed to get depth frame." << std::endl;
+                continue;
+            }
+            rs2::frame depth_filtered = depth_frame;
+            depth_filtered = _temp_filter.process(depth_filtered);
+
+            //Converts left IR to vector representation //ToDO: Change this so I am not initializing an std:;vector<uint16_t> on every iteration
+            auto ir_data = reinterpret_cast<const uint16_t*>(_ir_frame_left.get_data());
+            std::vector<uint16_t> ir_vector(ir_data, ir_data + (REALSENSE_HEIGHT * REALSENSE_WIDTH));
+            auto ir_ptr = std::make_unique<std::vector<uint16_t>>(std::move(ir_vector));
+        
+        
+            //Converts depth frame to vector representation //ToDO: Change this so I am not initializing an std:;vector<uint16_t> on every iteration
+            auto depth_data = reinterpret_cast<const uint16_t*>(depth_filtered.get_data());
+            std::vector<uint16_t> depth_vector(depth_data, depth_data + (REALSENSE_HEIGHT * REALSENSE_WIDTH));
+            auto depth_ptr = std::make_unique<std::vector<uint16_t>>(std::move(depth_vector));
+
+            //Updates the frame queues and locks the mutex before writing to the queue and notifying
+        
+            std::cout << "pushing to queue" << std::endl;
             //Updates the left IR frame queue
             if (_irLeftFrameQueue.size() > 5) {
                 _irLeftFrameQueue.pop(); // Discard the oldest frame if the queue is too large
@@ -615,6 +618,7 @@ void SetupAndSegment::ReadFrames()
                 _irLeftPtrQueue.pop(); // Discard the oldest frame if the queue is too large
             }
             _irLeftPtrQueue.push(std::move(ir_ptr));
+            std::cout << "done pushing to queue" << std::endl;
 
         }
         _realsenseFrameArrivedVar.notify_one();
@@ -629,7 +633,7 @@ bool SetupAndSegment::getRealSenseData(
     rs2::depth_frame& depth_frame, 
     std::unique_ptr <std::vector<uint16_t>>& depth_ptr, std::unique_ptr <std::vector<uint16_t>>& ir_ptr)
 {
-
+    std::cout << "RealSense Data Grabber Called" << std::endl;
     std::unique_lock<std::mutex> lock{ _realSenseFrameMutex };
 
     //Waits for a packet from the realsense thread
@@ -640,6 +644,7 @@ bool SetupAndSegment::getRealSenseData(
         //We had a timeout event
         return false;
     }
+    std::cout << "RealSense Got Packet" << std::endl;
 
     //Gets the left IR frame
     if (!_irLeftFrameQueue.empty())
