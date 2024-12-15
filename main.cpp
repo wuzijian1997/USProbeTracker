@@ -48,9 +48,10 @@ int main()
 	//Enters if camera is configured correctly
 	if (realsense_check)
 	{
+		std::cout << "Proper Setup" << std::endl;
 		//Sets up the IR segmentation
 		auto ir_segmenter = std::make_shared<IRSegmentation>(REALSENSE_WIDTH, REALSENSE_HEIGHT, realsense_camera._depth_scale,IRSegmentation::LogLevel::Silent);
-		ir_segmenter->setDetectionMode(IRSegmentation::DetectionMode::Blob); //Sets the segmentation method
+		ir_segmenter->setDetectionMode(IRSegmentation::DetectionMode::Contour); //Sets the segmentation method
 		ir_segmenter->setCameraBoundaries(0,REALSENSE_HEIGHT-1,0,REALSENSE_WIDTH-1,NEAR_CLIP,FAR_CLIP); //Sets the camera boundaries
 		double fx = realsense_camera._realSense_intrinsics_leftIR.fx;
 		double fy = realsense_camera._realSense_intrinsics_leftIR.fy;
@@ -78,12 +79,12 @@ int main()
 			{
 				//std::cout << "Entered" << std::endl;
 				//Converts left IR to vector representation
-				auto ir_data = reinterpret_cast<const uint16_t*>(realsense_data.irLeftFrame.get_data());
-				std::vector<uint16_t> ir_vector(ir_data, ir_data + (REALSENSE_HEIGHT * REALSENSE_WIDTH));
-				auto ir_ptr = std::make_unique<std::vector<uint16_t>>(std::move(ir_vector));
+				auto ir_data = reinterpret_cast<const uint8_t*>(realsense_data.irLeftFrame.get_data());
+				std::vector<uint8_t> ir_vector(ir_data, ir_data + (REALSENSE_HEIGHT * REALSENSE_WIDTH));
+				auto ir_ptr = std::make_unique<std::vector<uint8_t>>(std::move(ir_vector));
 
 
-				//Converts depth frame to vector representation //ToDO: Change this so I am not initializing an std:;vector<uint16_t> on every iteration
+				////Converts depth frame to vector representation //ToDO: Change this so I am not initializing an std:;vector<uint16_t> on every iteration
 
 				auto depth_data = reinterpret_cast<const uint16_t*>(realsense_data.depthFrameFiltered.get_data());
 				std::vector<uint16_t> depth_vector(depth_data, depth_data + (REALSENSE_HEIGHT * REALSENSE_WIDTH));
@@ -96,13 +97,13 @@ int main()
 				//ir_mat_right = cv::Mat(cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT), CV_8UC1, (void*)realsense_data.irRightFrame.get_data());
 
 				//std::cout << "Converted mat" << std::endl;
-				//auto detection = ir_segmenter->findKeypointsWorldFrame(std::move(ir_ptr), std::move(depth_ptr));
+				auto detection = ir_segmenter->findKeypointsWorldFrame(std::move(ir_ptr), std::move(depth_ptr));
 				//std::cout << "Got Keypoints" << std::endl;
 				////std::cout << "Success" << std::endl;
-				//for (const auto& coord : detection->imCoords) {
+				for (const auto& coord : detection->imCoords) {
 					 //draw the point on the image (circle with radius 3, red color)
-					//cv::circle(ir_mat_left, cv::Point(coord[0], coord[1]), 3, cv::Scalar(0, 0, 255), -1);
-				//}
+					cv::circle(ir_mat_left, cv::Point(coord[0], coord[1]), 3, cv::Scalar(0, 0, 255), -1);
+				}
 
 				cv::imshow("left ir", ir_mat_left);
 				//cv::imshow("right ir", ir_mat_right);

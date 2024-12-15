@@ -24,15 +24,11 @@ bool RealSense::RealSenseInit(int width, int height, int fps, float enable_laser
     }
 
     //Enabling the streams:
-    try {
-        _realSense_config.enable_stream(RS2_STREAM_INFRARED, 1, width, height, RS2_FORMAT_Y8, fps);
-        _realSense_config.enable_stream(RS2_STREAM_INFRARED, 2, width, height, RS2_FORMAT_Y8, fps);
-        _realSense_config.enable_stream(RS2_STREAM_DEPTH, width, height, RS2_FORMAT_Z16, fps);
-    }
-    catch (const rs2::error& e) {
-        std::cout << "Error enabling RealSense streams: " << e.what() << std::endl;
-        return false;
-    }
+
+    _realSense_config.enable_stream(RS2_STREAM_INFRARED, 1, width, height, RS2_FORMAT_Y8, fps);
+    _realSense_config.enable_stream(RS2_STREAM_INFRARED, 2, width, height, RS2_FORMAT_Y8, fps);
+    _realSense_config.enable_stream(RS2_STREAM_DEPTH, width, height, RS2_FORMAT_Z16, fps);
+
 
 
     //Starting Device
@@ -49,75 +45,69 @@ bool RealSense::RealSenseInit(int width, int height, int fps, float enable_laser
     }
 
     //Gets the depth scale
-    try {
-        auto depth_units = _realSense_context.query_devices().front().query_sensors().front().get_option(RS2_OPTION_DEPTH_UNITS);
-        _depth_scale = (double)depth_units; //Sets the depth scale
 
-    }
-    catch (const rs2::error& e) {
-        std::cout << "Error retrieving depth scale: " << e.what() << std::endl;
-        return false;
-    }
+    auto depth_units = _realSense_context.query_devices().front().query_sensors().front().get_option(RS2_OPTION_DEPTH_UNITS);
+    _depth_scale = (double)depth_units; //Sets the depth scale
+
 
     
 
     //Gets the factory set intrinsics of the left IR camera
-    try {
-        _realSense_intrinsics_leftIR = pipeline_profile.get_stream(RS2_STREAM_INFRARED, 1).as<rs2::video_stream_profile>().get_intrinsics();
-        _realSense_intrinsics_rightIR = pipeline_profile.get_stream(RS2_STREAM_INFRARED, 2).as<rs2::video_stream_profile>().get_intrinsics();
-    }
-    catch (const rs2::error& e) {
-        std::cout << "Error finding intrinsics: " << e.what() << std::endl;
-        return false;
-    }
+
+    _realSense_intrinsics_leftIR = pipeline_profile.get_stream(RS2_STREAM_INFRARED, 1).as<rs2::video_stream_profile>().get_intrinsics();
+    _realSense_intrinsics_rightIR = pipeline_profile.get_stream(RS2_STREAM_INFRARED, 2).as<rs2::video_stream_profile>().get_intrinsics();
+
 
 
     //Setting Laser Power
-    try {
-        rs2::device selected_device = pipeline_profile.get_device();
-        auto depth_sensor = selected_device.first<rs2::depth_sensor>();
 
-        if (depth_sensor.supports(RS2_OPTION_EMITTER_ENABLED))
-        {
-            depth_sensor.set_option(RS2_OPTION_EMITTER_ENABLED, enable_laser); // Enable or disable emitter
-        }
-        if (depth_sensor.supports(RS2_OPTION_LASER_POWER))
-        {
-            // Query min and max values:
-            //auto range = depth_sensor.get_option_range(RS2_OPTION_LASER_POWER);
-            depth_sensor.set_option(RS2_OPTION_LASER_POWER, laser_power); // Set  power
-        }
+    rs2::device selected_device = pipeline_profile.get_device();
+    auto depth_sensor = selected_device.first<rs2::depth_sensor>();
 
-        //Sets the gain of the IR images (sensors)
-        auto sensors = selected_device.query_sensors();
-
-        //Loops and checks if the sensor is the stereo module and if it supports gain
-        for (auto& sensor : sensors)
-        {
-            if (sensor.supports(RS2_OPTION_GAIN) && sensor.get_info(RS2_CAMERA_INFO_NAME) == std::string("Stereo Module"))
-            {
-                sensor.set_option(RS2_OPTION_GAIN, static_cast<float>(gain));
-                std::cout << "Set Camera Gain" << std::endl;
-            }
-        }
-
-
+    if (depth_sensor.supports(RS2_OPTION_EMITTER_ENABLED))
+    {
+        depth_sensor.set_option(RS2_OPTION_EMITTER_ENABLED, enable_laser); // Enable or disable emitter
     }
-    catch (const rs2::error& e) {
-        std::cout << "Error setting laser power: " << e.what() << std::endl;
-        return false;
+    if (depth_sensor.supports(RS2_OPTION_LASER_POWER))
+    {
+        // Query min and max values:
+        //auto range = depth_sensor.get_option_range(RS2_OPTION_LASER_POWER);
+        depth_sensor.set_option(RS2_OPTION_LASER_POWER, laser_power); // Set  power
     }
+
+    //Sets the gain of the IR images (sensors)
+    auto sensors = selected_device.query_sensors();
+
+    //Loops and checks if the sensor is the stereo module and if it supports gain
+    for (auto& sensor : sensors)
+    {
+        if (sensor.supports(RS2_OPTION_GAIN) && sensor.get_info(RS2_CAMERA_INFO_NAME) == std::string("Stereo Module"))
+        {
+            sensor.set_option(RS2_OPTION_GAIN, static_cast<float>(gain));
+            std::cout << "Set Camera Gain" << std::endl;
+        }
+    }
+
+    //Enables auto exposure
+    for (auto& sensor : sensors) {
+        // Check if the sensor supports auto exposure
+        if (sensor.supports(RS2_OPTION_ENABLE_AUTO_EXPOSURE)) {
+            // Enable auto exposure
+            sensor.set_option(RS2_OPTION_ENABLE_AUTO_EXPOSURE, 1.0f);
+            std::cout << "Auto exposure enabled for sensor: "
+                << sensor.get_info(RS2_CAMERA_INFO_NAME) << std::endl;
+        }
+    }
+
+
+
 
 
 
     //Aligns to left infrared stream
-    //try {
-    //    initializeAlign(RS2_STREAM_INFRARED);
-    //}
-    //catch (const rs2::error& e) {
-    //    std::cout << "Error initializing IR Frame alignment: " << e.what() << std::endl;
-    //    return false;
-    //}
+
+    initializeAlign(RS2_STREAM_INFRARED);
+
 
     //Configures the temporal depth filter for the findkeypoints function
     _temp_filter.set_option(RS2_OPTION_FILTER_SMOOTH_ALPHA, filter_alpha);
@@ -208,19 +198,19 @@ void RealSense::frameProducer()
                 std::cout << "Error: Alignment object not initialized." << std::endl;
                 continue;
             }*/
-            //rs2::frameset aligned_frameset = _align_to_left_ir->process(frameset);
+            rs2::frameset aligned_frameset = _align_to_left_ir->process(frameset);
 
             //Gets the realsense data object
             RealSenseData realsense_data;
-            realsense_data.irLeftFrame = frameset.get_infrared_frame(1);
-            realsense_data.irRightFrame = frameset.get_infrared_frame(2);
+            realsense_data.irLeftFrame = aligned_frameset.get_infrared_frame(1);
+            realsense_data.irRightFrame = aligned_frameset.get_infrared_frame(2);
 
             if (!realsense_data.irLeftFrame) {
                 std::cout << "Error: Failed to get left IR frame." << std::endl;
                 continue;
             }
 
-            realsense_data.depthFrame = frameset.get_depth_frame();
+            realsense_data.depthFrame = aligned_frameset.get_depth_frame();
 
             if (!realsense_data.depthFrame) {
                 std::cout << "Error: Failed to get depth frame." << std::endl;

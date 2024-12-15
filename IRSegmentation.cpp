@@ -99,7 +99,7 @@ IRSegmentation::LogLevel IRSegmentation::getLogLevel() {
 
 //*****************Segmentation Methods******************
 
-std::shared_ptr<IRSegmentation::IrDetection> IRSegmentation::findKeypointsWorldFrame(std::unique_ptr<std::vector<uint16_t>> irIm, std::unique_ptr<std::vector<uint16_t>> depthMap)
+std::shared_ptr<IRSegmentation::IrDetection> IRSegmentation::findKeypointsWorldFrame(std::unique_ptr<std::vector<uint8_t>> irIm, std::unique_ptr<std::vector<uint16_t>> depthMap)
 {
     auto detection = std::make_shared<IrDetection>();
 
@@ -125,7 +125,6 @@ std::shared_ptr<IRSegmentation::IrDetection> IRSegmentation::findKeypointsWorldF
 
     cv::Rect roi(xMinCrop, yMinCrop, xMaxCrop - xMinCrop + 1, yMaxCrop - yMinCrop + 1);
     cv::Mat im8b = im(roi).clone(); //Crops the image to the ROI
-
 
     bool success = false;
     std::vector<cv::KeyPoint> keypoints; //Creates keypoints object
