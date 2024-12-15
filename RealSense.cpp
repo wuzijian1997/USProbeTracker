@@ -6,27 +6,7 @@ RealSense::RealSense(int timeout)
 
 RealSense::~RealSense()
 {
-    //Closes realsense threading things
-    {
-        std::lock_guard<std::mutex> lock(_realSenseMutex);
-        _isRealSenseRunThread = false;
-    }
-
-    if (_realSenseThread && _realSenseThread->joinable())
-    {
-        _realSenseThread->join();
-    }
-
-    while (!_realSenseDataQueue.empty()) {
-        _realSenseDataQueue.pop();
-    }
-
-    if (_isPipelineInit)
-    {
-        _realSense_pipeline.stop();
-    }
-    _align_to_left_ir.reset();
-
+    stop();
 }
 
 
@@ -55,17 +35,6 @@ bool RealSense::RealSenseInit(int width, int height, int fps, float enable_laser
     }
 
 
-    //Gets the depth scale
-    try {
-        auto depth_units = _realSense_context.query_devices().front().query_sensors().front().get_option(RS2_OPTION_DEPTH_UNITS);
-        _depth_scale = (double)depth_units; //Sets the depth scale
-
-    }
-    catch (const rs2::error& e) {
-        std::cout << "Error retrieving depth scale: " << e.what() << std::endl;
-        return false;
-    }
-
     //Starting Device
     rs2::pipeline_profile pipeline_profile;
     try {
@@ -79,24 +48,28 @@ bool RealSense::RealSenseInit(int width, int height, int fps, float enable_laser
         return false;
     }
 
-    //Gets the factory set intrinsics of the left IR camera
-    auto stream_profiles = pipeline_profile.get_streams();
-    bool found = false;
-    for (auto& sp : stream_profiles) {
-        if (sp.stream_type() == RS2_STREAM_INFRARED && sp.stream_index() == 1) {
-            auto video_stream_profile = sp.as<rs2::video_stream_profile>();
-            _realSense_intrinsics_leftIR = video_stream_profile.get_intrinsics();
-            found = true;
-            break;
-        }
-    }
+    //Gets the depth scale
+    try {
+        auto depth_units = _realSense_context.query_devices().front().query_sensors().front().get_option(RS2_OPTION_DEPTH_UNITS);
+        _depth_scale = (double)depth_units; //Sets the depth scale
 
-    if (!found) {
-        std::cout << "Could not find the left infrared camera stream profile." << std::endl;
+    }
+    catch (const rs2::error& e) {
+        std::cout << "Error retrieving depth scale: " << e.what() << std::endl;
         return false;
     }
 
+    
 
+    //Gets the factory set intrinsics of the left IR camera
+    try {
+        _realSense_intrinsics_leftIR = pipeline_profile.get_stream(RS2_STREAM_INFRARED, 1).as<rs2::video_stream_profile>().get_intrinsics();
+        _realSense_intrinsics_rightIR = pipeline_profile.get_stream(RS2_STREAM_INFRARED, 2).as<rs2::video_stream_profile>().get_intrinsics();
+    }
+    catch (const rs2::error& e) {
+        std::cout << "Error finding intrinsics: " << e.what() << std::endl;
+        return false;
+    }
 
 
     //Setting Laser Power
@@ -168,105 +141,146 @@ void RealSense::start()
         return;
     }
     _isRealSenseRunThread = true;
-    _realSenseThread= std::make_shared<std::thread>([this]() {frameProducer(); });
+    _realSenseThread = std::thread(&RealSense::frameProducer, this);
+    //_realSenseThread= std::make_shared<std::thread>([this]() {frameProducer(); });
+}
+
+void RealSense::stop()
+{
+    //Closes realsense threading things
+    {
+        std::lock_guard<std::mutex> lock(_realSenseMutex);
+        _isRealSenseRunThread = false;
+
+    }
+
+    if (_realSenseThread.joinable())
+    {
+        _realSenseThread.join();
+    }
+    {
+        std::lock_guard<std::mutex> lock(_realSenseMutex);
+        while (!_realSenseDataQueue.empty()) {
+            _realSenseDataQueue.pop();
+        }
+    }
+
+
+    if (_isPipelineInit)
+    {
+        _realSense_pipeline.stop();
+    }
+    _align_to_left_ir.reset();
+
 }
 
 
 void RealSense::frameProducer()
 {
-    rs2::frameset frameset, aligned_frameset;
-    rs2::frame ir_frame_left, ir_frame_right;
-    
+    int retry_count = 0;
     while (_isRealSenseRunThread)
     {
-        
-        frameset = _realSense_pipeline.wait_for_frames();
-        if (!frameset) {
-            std::cout << "Error: Failed to get frames from RealSense pipeline." << std::endl;
-            continue;
-        }
-        
-        //if (_realSense_pipeline.try_wait_for_frames(&frameset, 1000))
-        //{
-        //    //frameset = realSenseObj->_realSense_pipeline.wait_for_frames();
-        //////Error Checking 
-        ////if (!frameset) {
-        //    std::cout << "Error: Failed to get frames from RealSense pipeline." << std::endl;
+        try {
+            rs2::frameset frameset;
+            //frameset = _realSense_pipeline.wait_for_frames();
+            /*if (!frameset) {
+                std::cout << "Error: Failed to get frames from RealSense pipeline." << std::endl;
+                continue;
+            }*/
 
-        //    continue;
-        //}
-
-        //Gets the IR frames
-        if (!_align_to_left_ir) {
-            std::cout << "Error: Alignment object not initialized." << std::endl;
-            continue;
-        }
-        aligned_frameset = _align_to_left_ir->process(frameset);
-        ir_frame_left = aligned_frameset.get_infrared_frame(1);
-        ir_frame_right = aligned_frameset.get_infrared_frame(2);
-
-        if (!ir_frame_left) {
-            std::cout << "Error: Failed to get left IR frame." << std::endl;
-            continue;
-        }
-
-        rs2::frame depth_frame = aligned_frameset.get_depth_frame();
-
-        if (!depth_frame) {
-            std::cout << "Error: Failed to get depth frame." << std::endl;
-            continue;
-        }
-
-        rs2::frame depth_filtered = _temp_filter.process(depth_filtered);
-
-        //Updates the data queue and converts frames to pointers
-        //locks the mutex before writing to the queue and notifying
-
-
-        {
-            std::lock_guard<std::mutex> l{ _realSenseMutex };
-
-            if (_realSenseDataQueue.size() > 10) {
-                _realSenseDataQueue.pop(); // Discard the oldest readings if the queue is too large
+            //THis seems like the most robust method to handle timeouts
+            if (!_realSense_pipeline.poll_for_frames(&frameset))
+            {
+                std::cout << "Error: Failed to get frames from RealSense pipeline." << std::endl;
+                retry_count++;
+                if (retry_count > REALSENSE_RETRY)
+                {
+                    ResetRealSensePipeline();
+                    retry_count = 0;
+                }
+                std::this_thread::sleep_for(std::chrono::milliseconds(REALSENSE_THREAD_DELAY));
+                continue;
             }
-            _realSenseDataQueue.push({
-       std::make_shared<rs2::frame>(ir_frame_left),
-       std::make_shared<rs2::frame>(ir_frame_right),
-       std::make_shared<rs2::frame>(depth_frame),
-       std::make_shared<rs2::frame>(depth_filtered)
-                });
-            std::cout << "Queue size in thread: " << _realSenseDataQueue.size() << std::endl;
+            retry_count = 0;
+
+            //Gets the aligned IR frames
+            /*if (!_align_to_left_ir) {
+                std::cout << "Error: Alignment object not initialized." << std::endl;
+                continue;
+            }*/
+            rs2::frameset aligned_frameset = _align_to_left_ir->process(frameset);
+
+            //Gets the realsense data object
+            RealSenseData realsense_data;
+            realsense_data.irLeftFrame = aligned_frameset.get_infrared_frame(1);
+            realsense_data.irRightFrame = aligned_frameset.get_infrared_frame(2);
+
+            if (!realsense_data.irLeftFrame) {
+                std::cout << "Error: Failed to get left IR frame." << std::endl;
+                continue;
+            }
+
+            realsense_data.depthFrame = aligned_frameset.get_depth_frame();
+
+            if (!realsense_data.depthFrame) {
+                std::cout << "Error: Failed to get depth frame." << std::endl;
+                continue;
+            }
+
+            realsense_data.depthFrameFiltered = _temp_filter.process(realsense_data.depthFrame);
+
+            //Updates the data queue
+            //locks the mutex before writing to the queue and notifying
+
+
+            {
+                std::lock_guard<std::mutex> l{ _realSenseMutex };
+
+                if (_realSenseDataQueue.size() > 10) {
+                    _realSenseDataQueue.pop(); // Discard the oldest readings if the queue is too large
+                }
+                _realSenseDataQueue.push(realsense_data);
+
+            }
+            _realSenseFrameArrivedVar.notify_one();
+            std::this_thread::sleep_for(std::chrono::milliseconds(REALSENSE_THREAD_DELAY));
 
         }
-        _realSenseFrameArrivedVar.notify_one();
-        //std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        catch (const rs2::error& e) {
+            std::cout << "RealSense error: " << e.what() << std::endl;
+            ResetRealSensePipeline();
+        }
     }
 }
 
-std::shared_ptr<RealSense::RealSenseData> RealSense::getRealSenseData(bool& bool_check)
+bool RealSense::getRealSenseData(RealSenseData& realsense_data)
 {
     //bool return_bool = false;
-    auto realsense_data = std::make_shared<RealSenseData>();
     std::unique_lock<std::mutex> lock{_realSenseMutex};
     //Returns empty frame if waiting longer than 20 ms (50 Hz)
     if (!_realSenseFrameArrivedVar.wait_for(lock, std::chrono::milliseconds(_timeout), [this]() { return !_realSenseDataQueue.empty(); }))
     {
         //We had a timeout event, return false
-        std::cout << "Queue size: " << _realSenseDataQueue.size() << std::endl;
-        bool_check = false;
+        //lock.unlock();
+        std::cout << "Timeout Occured" << std::endl;
+        return false;
     }
-    else {
-        std::cout << "Queue size: " << _realSenseDataQueue.size() << std::endl;
-        RealSenseData& captured_data = _realSenseDataQueue.front();
-        realsense_data->depth_frame = captured_data.depth_frame;
-        realsense_data->irLeftFrame = captured_data.irLeftFrame;
-        realsense_data->irRightFrame = captured_data.irRightFrame;
-        realsense_data->depth_frame_filtered = captured_data.depth_frame_filtered;
 
-        _realSenseDataQueue.pop();
-        bool_check = true;
-    }
+    realsense_data = _realSenseDataQueue.front();
+    _realSenseDataQueue.pop();
+    //lock.unlock();
     
-    return realsense_data;
+    return true;
+}
+
+void RealSense::ResetRealSensePipeline() {
+    try {       
+        _realSense_pipeline.stop();
+        _realSense_pipeline.start(_realSense_config); // Restart the pipeline
+        std::cout << "RealSense pipeline reset successfully." << std::endl;
+    }
+    catch (const rs2::error& e) {
+        std::cerr << "Failed to reset RealSense pipeline: " << e.what() << std::endl;
+    }
 }
 

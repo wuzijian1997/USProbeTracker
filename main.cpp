@@ -33,17 +33,19 @@
 
 
 cv::Mat ir_mat_left, ir_mat_right; //OpenCV Matrices of right/left IR
-bool data_returned = false;
+bool is_data_returned = false;
 //Data structure returned by realsense class
 int main()
 {
-	//Inits the realsense camera
-	RealSense realsense_camera(20); //timeout is the amount of time we wait for realsense thread to update the data
+	//Inits the realsense camera object
+	RealSense realsense_camera(10); //timeout is the amount of time we wait for realsense thread to update the data
 	 
-	
+	//Configures the camera
 	bool realsense_check= realsense_camera.RealSenseInit(REALSENSE_WIDTH,
 		REALSENSE_HEIGHT,REALSENSE_FPS, ENABLE_REALSENSE_LASER,REALSENSE_LASER_POWER,
 		REALSENSE_GAIN,TEMPORAL_DEPTH_FILTER_ALPHA,TEMPORAL_DEPTH_FILTER_DELTA);
+	
+	//Enters if camera is configured correctly
 	if (realsense_check)
 	{
 		//Sets up the IR segmentation
@@ -62,42 +64,48 @@ int main()
 
 			});
 
+		//Starts the realsense thread
 		realsense_camera.start();
-		while (1)
+		while (true)
 		{
+			//Configures the object holding data returned by realsense thread
+			RealSense::RealSenseData realsense_data;
+			is_data_returned=realsense_camera.getRealSenseData(realsense_data);
+			
+			std::cout << "Got Frames with return val: " <<is_data_returned<< std::endl;
 
-			 auto realsense_data = realsense_camera.getRealSenseData(data_returned);
-			std::cout << "Got Frames" << std::endl;
-
-			if (data_returned)
+			if (is_data_returned)
 			{
 				std::cout << "Entered" << std::endl;
 				//Converts left IR to vector representation
-				auto ir_data = reinterpret_cast<const uint16_t*>(realsense_data->irLeftFrame->get_data());
+				auto ir_data = reinterpret_cast<const uint16_t*>(realsense_data.irLeftFrame.get_data());
 				std::vector<uint16_t> ir_vector(ir_data, ir_data + (REALSENSE_HEIGHT * REALSENSE_WIDTH));
 				auto ir_ptr = std::make_unique<std::vector<uint16_t>>(std::move(ir_vector));
 
 
 				//Converts depth frame to vector representation //ToDO: Change this so I am not initializing an std:;vector<uint16_t> on every iteration
 
-				auto depth_data = reinterpret_cast<const uint16_t*>(realsense_data->depth_frame_filtered->get_data());
+				auto depth_data = reinterpret_cast<const uint16_t*>(realsense_data.depthFrameFiltered.get_data());
 				std::vector<uint16_t> depth_vector(depth_data, depth_data + (REALSENSE_HEIGHT * REALSENSE_WIDTH));
 				auto depth_ptr = std::make_unique<std::vector<uint16_t>>(std::move(depth_vector));
-				std::cout << "Converted Frames" << std::endl;
+				//std::cout << "Converted Frames" << std::endl;
 
 			
 
-				ir_mat_left = cv::Mat(cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT), CV_8UC1, (void*)realsense_data->irLeftFrame->get_data());
-				std::cout << "Converted mat" << std::endl;
+				ir_mat_left = cv::Mat(cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT), CV_8UC1, (void*)realsense_data.irLeftFrame.get_data());
+				//ir_mat_right = cv::Mat(cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT), CV_8UC1, (void*)realsense_data.irRightFrame.get_data());
+
+				//std::cout << "Converted mat" << std::endl;
 				auto detection = ir_segmenter->findKeypointsWorldFrame(std::move(ir_ptr), std::move(depth_ptr));
-				std::cout << "Got Keypoints" << std::endl;
+				//std::cout << "Got Keypoints" << std::endl;
 				////std::cout << "Success" << std::endl;
-				for (const auto& coord : detection->imCoords) {
+				//for (const auto& coord : detection->imCoords) {
 					// draw the point on the image (circle with radius 3, red color)
-					cv::circle(ir_mat_left, cv::Point(coord[0], coord[1]), 3, cv::Scalar(0, 0, 255), -1);
-				}
+					//cv::circle(ir_mat_left, cv::Point(coord[0], coord[1]), 3, cv::Scalar(0, 0, 255), -1);
+				//}
 
 				cv::imshow("left ir", ir_mat_left);
+				//cv::imshow("right ir", ir_mat_right);
 				char c = cv::waitKey(1);	//grabs key press, if q we close
 				if (c == 'q')
 				{
@@ -108,7 +116,9 @@ int main()
 			}
 
 		}
+		realsense_camera.stop();
 	}
+	
 
 
 

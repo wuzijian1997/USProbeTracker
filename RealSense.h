@@ -25,14 +25,12 @@ const int REALSENSE_FPS = 90;
 const float ENABLE_REALSENSE_LASER = 1.0f; //1 if we want the laser on
 const float REALSENSE_LASER_POWER = 50.0f;
 const float REALSENSE_GAIN = 16.0f; //Gain of IR image, key for removing noise
-const int REALSENSE_WAITFORFRAMES_DELAY = 1000; //The thread waits for 1000 ms for frames to arrive
+const int REALSENSE_THREAD_DELAY = 2; //The frame producer thread waits this in ms
+const int REALSENSE_RETRY = 100/ REALSENSE_THREAD_DELAY; //We restart the pipeline if it skips by this amount
 
 //Depth Frame Filtering Constants
 const float TEMPORAL_DEPTH_FILTER_ALPHA = 0.2f;
 const float TEMPORAL_DEPTH_FILTER_DELTA = 17.0f;
-
-
-
 
 
 class RealSense
@@ -42,10 +40,10 @@ public:
 	//Structure of data streamed from the realsense camera
 	struct RealSenseData
 	{
-		std::shared_ptr<rs2::frame> irLeftFrame;
-		std::shared_ptr<rs2::frame> irRightFrame;
-		std::shared_ptr<rs2::frame> depth_frame;
-		std::shared_ptr<rs2::frame> depth_frame_filtered;
+		rs2::frame irLeftFrame;
+		rs2::frame irRightFrame;
+		rs2::frame depthFrame;
+		rs2::frame depthFrameFiltered;
 	};
 	
 
@@ -53,7 +51,7 @@ public:
 
 	//Initializes the class
 	// @param timeout the amount of time we wait for realsense thread to update the data
-	RealSense(int timeout);
+	RealSense(int timeout=20); //Default is 20
 	~RealSense();
 
 	//Inits the realsense camera
@@ -67,15 +65,19 @@ public:
 	// @param filter_delta sets delta of temporal depth filter used on depth vector passed to segmentation
 	bool RealSenseInit(int width, int height,int fps, float enable_laser, float laser_power,float gain,float filter_alpha,float filter_delta);
 
-	//Starts threading and reading camera data
+	//Starts/stops threading and reading camera data
 	void start();
+	void stop();
+
+	//Resets the pipeline
+	void ResetRealSensePipeline();
 
 	//Gets the realsense frame data
-	std::shared_ptr<RealSenseData> getRealSenseData(bool& bool_check);
+	bool getRealSenseData(RealSenseData& realsense_data);
 
 	//*************Public Class vars****************	
-	rs2_intrinsics _realSense_intrinsics_leftIR; //Factory set intrinsics
-	double _depth_scale; //depth scale (scales realsense depth to meters)
+	rs2_intrinsics _realSense_intrinsics_leftIR, _realSense_intrinsics_rightIR; //Factory set intrinsics
+	double _depth_scale=0.001f; //depth scale (scales realsense depth to meters)
 
 	bool _isPipelineInit=false;
 
@@ -104,8 +106,8 @@ private:
 	std::queue<RealSenseData> _realSenseDataQueue;
 	std::mutex _realSenseMutex;
 	std::condition_variable _realSenseFrameArrivedVar;
-	std::shared_ptr<std::thread> _realSenseThread;
-	std::atomic<bool> _isRealSenseRunThread = false;
+	std::thread _realSenseThread;
+	std::atomic<bool> _isRealSenseRunThread{ false };
 
 };
 
