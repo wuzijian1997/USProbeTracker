@@ -111,13 +111,13 @@ bool RealSense::RealSenseInit(int width, int height, int fps, float enable_laser
 
 
     //Aligns to left infrared stream
-    try {
-        initializeAlign(RS2_STREAM_INFRARED);
-    }
-    catch (const rs2::error& e) {
-        std::cout << "Error initializing IR Frame alignment: " << e.what() << std::endl;
-        return false;
-    }
+    //try {
+    //    initializeAlign(RS2_STREAM_INFRARED);
+    //}
+    //catch (const rs2::error& e) {
+    //    std::cout << "Error initializing IR Frame alignment: " << e.what() << std::endl;
+    //    return false;
+    //}
 
     //Configures the temporal depth filter for the findkeypoints function
     _temp_filter.set_option(RS2_OPTION_FILTER_SMOOTH_ALPHA, filter_alpha);
@@ -191,7 +191,7 @@ void RealSense::frameProducer()
             //THis seems like the most robust method to handle timeouts
             if (!_realSense_pipeline.poll_for_frames(&frameset))
             {
-                std::cout << "Error: Failed to get frames from RealSense pipeline." << std::endl;
+                //std::cout << "Error: Failed to get frames from RealSense pipeline." << std::endl;
                 retry_count++;
                 if (retry_count > REALSENSE_RETRY)
                 {
@@ -208,19 +208,19 @@ void RealSense::frameProducer()
                 std::cout << "Error: Alignment object not initialized." << std::endl;
                 continue;
             }*/
-            rs2::frameset aligned_frameset = _align_to_left_ir->process(frameset);
+            //rs2::frameset aligned_frameset = _align_to_left_ir->process(frameset);
 
             //Gets the realsense data object
             RealSenseData realsense_data;
-            realsense_data.irLeftFrame = aligned_frameset.get_infrared_frame(1);
-            realsense_data.irRightFrame = aligned_frameset.get_infrared_frame(2);
+            realsense_data.irLeftFrame = frameset.get_infrared_frame(1);
+            realsense_data.irRightFrame = frameset.get_infrared_frame(2);
 
             if (!realsense_data.irLeftFrame) {
                 std::cout << "Error: Failed to get left IR frame." << std::endl;
                 continue;
             }
 
-            realsense_data.depthFrame = aligned_frameset.get_depth_frame();
+            realsense_data.depthFrame = frameset.get_depth_frame();
 
             if (!realsense_data.depthFrame) {
                 std::cout << "Error: Failed to get depth frame." << std::endl;
@@ -262,7 +262,7 @@ bool RealSense::getRealSenseData(RealSenseData& realsense_data)
     {
         //We had a timeout event, return false
         //lock.unlock();
-        std::cout << "Timeout Occured" << std::endl;
+        //std::cout << "Timeout Occured" << std::endl;
         return false;
     }
 
