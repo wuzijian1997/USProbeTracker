@@ -33,12 +33,14 @@
 
 
 cv::Mat ir_mat_left, ir_mat_right; //OpenCV Matrices of right/left IR
-RealSenseData realsense_data; //Data structure returned by realsense class
 bool data_returned = false;
+//Data structure returned by realsense class
 int main()
 {
 	//Inits the realsense camera
 	RealSense realsense_camera(20); //timeout is the amount of time we wait for realsense thread to update the data
+	 
+	
 	bool realsense_check= realsense_camera.RealSenseInit(REALSENSE_WIDTH,
 		REALSENSE_HEIGHT,REALSENSE_FPS, ENABLE_REALSENSE_LASER,REALSENSE_LASER_POWER,
 		REALSENSE_GAIN,TEMPORAL_DEPTH_FILTER_ALPHA,TEMPORAL_DEPTH_FILTER_DELTA);
@@ -64,27 +66,28 @@ int main()
 		while (1)
 		{
 
-			data_returned = realsense_camera.getRealSenseData(realsense_data);
+			 auto realsense_data = realsense_camera.getRealSenseData(data_returned);
 			std::cout << "Got Frames" << std::endl;
+
 			if (data_returned)
 			{
 				std::cout << "Entered" << std::endl;
 				//Converts left IR to vector representation
-				auto ir_data = reinterpret_cast<const uint16_t*>(realsense_data.irLeftFrame.get_data());
+				auto ir_data = reinterpret_cast<const uint16_t*>(realsense_data->irLeftFrame->get_data());
 				std::vector<uint16_t> ir_vector(ir_data, ir_data + (REALSENSE_HEIGHT * REALSENSE_WIDTH));
 				auto ir_ptr = std::make_unique<std::vector<uint16_t>>(std::move(ir_vector));
 
 
 				//Converts depth frame to vector representation //ToDO: Change this so I am not initializing an std:;vector<uint16_t> on every iteration
 
-				auto depth_data = reinterpret_cast<const uint16_t*>(realsense_data.depth_frame_filtered.get_data());
+				auto depth_data = reinterpret_cast<const uint16_t*>(realsense_data->depth_frame_filtered->get_data());
 				std::vector<uint16_t> depth_vector(depth_data, depth_data + (REALSENSE_HEIGHT * REALSENSE_WIDTH));
 				auto depth_ptr = std::make_unique<std::vector<uint16_t>>(std::move(depth_vector));
 				std::cout << "Converted Frames" << std::endl;
 
 			
 
-				ir_mat_left = cv::Mat(cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT), CV_8UC1, (void*)realsense_data.irLeftFrame.get_data());
+				ir_mat_left = cv::Mat(cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT), CV_8UC1, (void*)realsense_data->irLeftFrame->get_data());
 				std::cout << "Converted mat" << std::endl;
 				auto detection = ir_segmenter->findKeypointsWorldFrame(std::move(ir_ptr), std::move(depth_ptr));
 				std::cout << "Got Keypoints" << std::endl;

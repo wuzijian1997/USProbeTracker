@@ -210,18 +210,18 @@ void RealSense::frameProducer()
             continue;
         }
 
-        rs2::depth_frame depth_frame = aligned_frameset.get_depth_frame();
+        rs2::frame depth_frame = aligned_frameset.get_depth_frame();
 
         if (!depth_frame) {
             std::cout << "Error: Failed to get depth frame." << std::endl;
             continue;
         }
 
-        rs2::frame depth_filtered = depth_frame;
-        depth_filtered = _temp_filter.process(depth_filtered);
+        rs2::frame depth_filtered = _temp_filter.process(depth_filtered);
 
         //Updates the data queue and converts frames to pointers
         //locks the mutex before writing to the queue and notifying
+
 
         {
             std::lock_guard<std::mutex> l{ _realSenseMutex };
@@ -229,32 +229,44 @@ void RealSense::frameProducer()
             if (_realSenseDataQueue.size() > 10) {
                 _realSenseDataQueue.pop(); // Discard the oldest readings if the queue is too large
             }
-            _realSenseDataQueue.push({ ir_frame_left ,ir_frame_right,depth_frame,depth_filtered });
+            _realSenseDataQueue.push({
+       std::make_shared<rs2::frame>(ir_frame_left),
+       std::make_shared<rs2::frame>(ir_frame_right),
+       std::make_shared<rs2::frame>(depth_frame),
+       std::make_shared<rs2::frame>(depth_filtered)
+                });
+            std::cout << "Queue size in thread: " << _realSenseDataQueue.size() << std::endl;
 
         }
         _realSenseFrameArrivedVar.notify_one();
-        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        //std::this_thread::sleep_for(std::chrono::milliseconds(5));
     }
 }
 
-bool RealSense::getRealSenseData(RealSenseData& frame_data)
+std::shared_ptr<RealSense::RealSenseData> RealSense::getRealSenseData(bool& bool_check)
 {
-    bool return_bool = false;
-    
+    //bool return_bool = false;
+    auto realsense_data = std::make_shared<RealSenseData>();
     std::unique_lock<std::mutex> lock{_realSenseMutex};
     //Returns empty frame if waiting longer than 20 ms (50 Hz)
     if (!_realSenseFrameArrivedVar.wait_for(lock, std::chrono::milliseconds(_timeout), [this]() { return !_realSenseDataQueue.empty(); }))
     {
         //We had a timeout event, return false
-        return_bool = false;
+        std::cout << "Queue size: " << _realSenseDataQueue.size() << std::endl;
+        bool_check = false;
     }
     else {
-        frame_data = _realSenseDataQueue.front();
+        std::cout << "Queue size: " << _realSenseDataQueue.size() << std::endl;
+        RealSenseData& captured_data = _realSenseDataQueue.front();
+        realsense_data->depth_frame = captured_data.depth_frame;
+        realsense_data->irLeftFrame = captured_data.irLeftFrame;
+        realsense_data->irRightFrame = captured_data.irRightFrame;
+        realsense_data->depth_frame_filtered = captured_data.depth_frame_filtered;
+
         _realSenseDataQueue.pop();
-        return_bool = true;
+        bool_check = true;
     }
     
-    lock.unlock();
-    return return_bool;
+    return realsense_data;
 }
 

@@ -31,20 +31,23 @@ const int REALSENSE_WAITFORFRAMES_DELAY = 1000; //The thread waits for 1000 ms f
 const float TEMPORAL_DEPTH_FILTER_ALPHA = 0.2f;
 const float TEMPORAL_DEPTH_FILTER_DELTA = 17.0f;
 
-//Structure of data streamed from the realsense camera
-struct RealSenseData
-{
-	rs2::frame irLeftFrame;
-	rs2::frame irRightFrame;
-	rs2::depth_frame depth_frame=rs2::frame();
-	rs2::frame depth_frame_filtered;
-};
+
 
 
 
 class RealSense
 {
 public:
+
+	//Structure of data streamed from the realsense camera
+	struct RealSenseData
+	{
+		std::shared_ptr<rs2::frame> irLeftFrame;
+		std::shared_ptr<rs2::frame> irRightFrame;
+		std::shared_ptr<rs2::frame> depth_frame;
+		std::shared_ptr<rs2::frame> depth_frame_filtered;
+	};
+	
 
 	//************Public Class Functions************
 
@@ -68,7 +71,7 @@ public:
 	void start();
 
 	//Gets the realsense frame data
-	bool getRealSenseData(RealSenseData& frame_data);
+	std::shared_ptr<RealSenseData> getRealSenseData(bool& bool_check);
 
 	//*************Public Class vars****************	
 	rs2_intrinsics _realSense_intrinsics_leftIR; //Factory set intrinsics
