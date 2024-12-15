@@ -439,6 +439,7 @@ std::shared_ptr<SetupAndSegment::IrDetection> SetupAndSegment::findKeypointsWorl
     width = m_imWidth;
     height = m_imHeight;
     //}
+    const std::vector<int> _imagesz = { height,width };
 
     //Creates cv Mat image from data
     cv::Mat im = cv::Mat(_imagesz, CV_8UC1, irIm->data(), 0);

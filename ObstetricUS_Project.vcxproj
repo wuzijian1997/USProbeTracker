@@ -148,6 +148,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="EquipmentTest.cpp" />
+    <ClCompile Include="IRSegmentation.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="pch.cpp" />
     <ClCompile Include="PoseTracker.cpp" />
@@ -159,6 +160,7 @@
   <ItemGroup>
     <ClInclude Include="atomicops.h" />
     <ClInclude Include="framework.h" />
+    <ClInclude Include="IRSegmentation.h" />
     <ClInclude Include="log.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="PoseTracker.h" />

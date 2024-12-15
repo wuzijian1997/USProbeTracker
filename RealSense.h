@@ -18,11 +18,10 @@
 #include <memory>
 
 
-
 //**********RealSense Constants***************
 const int REALSENSE_WIDTH = 848;
 const int REALSENSE_HEIGHT = 480;
-const int REALSENSE_FPS = 60;
+const int REALSENSE_FPS = 90;
 const float ENABLE_REALSENSE_LASER = 1.0f; //1 if we want the laser on
 const float REALSENSE_LASER_POWER = 50.0f;
 const float REALSENSE_GAIN = 16.0f; //Gain of IR image, key for removing noise
@@ -30,16 +29,15 @@ const int REALSENSE_WAITFORFRAMES_DELAY = 1000; //The thread waits for 1000 ms f
 
 //Depth Frame Filtering Constants
 const float TEMPORAL_DEPTH_FILTER_ALPHA = 0.2f;
-const float TEMPORAL_DEPTH_FILTER_DELTA = 17;
+const float TEMPORAL_DEPTH_FILTER_DELTA = 17.0f;
 
 //Structure of data streamed from the realsense camera
 struct RealSenseData
 {
 	rs2::frame irLeftFrame;
 	rs2::frame irRightFrame;
-	rs2::frame depth_frame;
-	std::unique_ptr <std::vector<uint16_t>> depthFilteredPtr;
-	std::unique_ptr <std::vector<uint16_t>> irLeftPtr;
+	rs2::depth_frame depth_frame=rs2::frame();
+	rs2::frame depth_frame_filtered;
 };
 
 
