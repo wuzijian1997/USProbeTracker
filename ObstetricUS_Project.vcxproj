@@ -82,8 +82,8 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>C:\opencvGPU_CPP\build\install\include;Include\Eigen3\include;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\opencvGPU_CPP\build\install\x64\vc16\lib;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\Intel RealSense SDK 2.0\include;C:\opencvGPU_CPP\build\install\include;Include\Eigen3\include;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\Intel RealSense SDK 2.0\lib\x64;C:\opencvGPU_CPP\build\install\x64\vc16\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -133,7 +133,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>Include\Eigen3\include;C:\Realsense_CPP\librealsense-2.54.2\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>Include\Eigen3\include;C:\Intel RealSense SDK 2.0\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <CompileAsManaged>false</CompileAsManaged>
     </ClCompile>
@@ -143,7 +143,7 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>opencv_world490.lib;opencv_img_hash490.lib;realsense2.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>C:\Realsense_CPP\build\Release;C:\opencvGPU_CPP\build\install\x64\vc16\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:\Intel RealSense SDK 2.0\lib\x64;C:\opencvGPU_CPP\build\install\x64\vc16\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
