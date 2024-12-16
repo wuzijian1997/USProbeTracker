@@ -1,11 +1,11 @@
 #pragma once
-#include "SetupAndSegment.h"
+#include "IRSegmentation.h"
 #include "readerwriterqueue.h"
 #include <future>
 
 //*************Pose Tracking Constants************
-const float MROI_SCALE_X = 1.0f; //1.0f/1.8f;
-const float MROI_SCALE_Y = 1.0f;
+const float MROI_SCALE_X = 1.0f; // / 1.25f;
+const float MROI_SCALE_Y = 1.0f; // / 1.25f;
 
 //Outlier Removal (near/far clip)
 const float OUTLIER_NEAR_CLIP = NEAR_CLIP;
@@ -24,14 +24,14 @@ public:
 		std::vector<Eigen::Vector2i> imageCoords;
 	};
 
-	explicit PoseTracker(std::shared_ptr<SetupAndSegment> irTracker, std::vector<Eigen::Vector3d> geometry, float markerDiameter);
+	explicit PoseTracker(std::shared_ptr<IRSegmentation> irTracker, std::vector<Eigen::Vector3d> geometry, float markerDiameter);
 	~PoseTracker();
 
 	/// Update the tracking with a new set of images and the device pose
 	/// @param world_T_cam Pose of the camera in the world when the images were captured</param>
 	/// @param irIm Infrared reflectivity image for segmenting the markers. Ownership of the pointer passes to this function</param>
 	/// @param depthMap Depth map for obtaining the depth value at the segmented locations. Ownership of the pointer passes to this function</param>
-	void update(std::unique_ptr<std::vector<uint16_t>> irIm, std::unique_ptr<std::vector<uint16_t>> depthMap);
+	void update(std::unique_ptr<std::vector<uint8_t>> irIm, std::unique_ptr<std::vector<uint16_t>> depthMap);
 
 	/// Return the most recent computed pose of the tracked object
 	Eigen::Matrix4d getPose();
@@ -60,16 +60,16 @@ public:
 
 private:
 	struct SensorPacket {
-		SensorPacket(std::unique_ptr<std::vector<uint16_t>> ir, std::unique_ptr<std::vector<uint16_t>> depth)
+		SensorPacket(std::unique_ptr<std::vector<uint8_t>> ir, std::unique_ptr<std::vector<uint16_t>> depth)
 			: irIm(std::move(ir))
 			, depthMap(std::move(depth))
 		{}
-		std::unique_ptr<std::vector<uint16_t>> irIm;
+		std::unique_ptr<std::vector<uint8_t>> irIm;
 		std::unique_ptr<std::vector<uint16_t>> depthMap;
 	};
 
 	/// The IR tracker which actually interacts with the images and finds the keypoints
-	std::shared_ptr<SetupAndSegment> m_irTracker;
+	std::shared_ptr<IRSegmentation> m_irTracker;
 
 	/// The marker points in local coordinates, in units of metres. Should be arranged so the centroid of the points is the origin
 	std::vector<Eigen::Vector3d> m_markerGeom;
@@ -99,13 +99,13 @@ private:
 	uint64_t m_lastPoseTime = 0;
 	bool m_extrapolate = false;
 	int m_nPoints;
-	int m_roiBuffer = 25;
+	int m_roiBuffer = 100;
 	int m_width;
 	int m_height;
 
 	// Corrections for specific devices used with Unity (left-handed coordinates)
 	//bool m_unity;
-	SetupAndSegment::LogLevel m_logLevel;
+	IRSegmentation::LogLevel m_logLevel;
 
 	// Search only a region of interest
 	Eigen::Vector4i m_roi;
@@ -136,10 +136,10 @@ private:
 	void detectionThreadFunction();
 
 	/// Perform some preprocessing, discarding obvious outliers, etc.
-	bool preprocessMarkerDetection(std::shared_ptr<SetupAndSegment::IrDetection> detection);
+	bool preprocessMarkerDetection(std::shared_ptr<IRSegmentation::IrDetection> detection);
 
 	/// Perform processing on the detected keypoints to obtain the object pose
-	void processMarkerDetection(std::shared_ptr<SetupAndSegment::IrDetection> detection);
+	void processMarkerDetection(std::shared_ptr<IRSegmentation::IrDetection> detection);
 
 	// Functions for the pose computation
 	double fillInMissing(std::vector<Eigen::Vector3d>& mes, std::vector<int>& idxs);
@@ -150,7 +150,7 @@ private:
 	Eigen::Matrix3d kabsch(const std::vector<Eigen::Vector3d>& mes, const std::vector<Eigen::Vector3d>& exp);
 	bool svd(const Eigen::Matrix3d& mat, Eigen::Matrix3d& U, Eigen::Matrix3d& V);
 	bool noBadJumps(const std::vector<Eigen::Vector3d>& mes, std::vector<int> idxs);
-	void setPoseFromResult(const std::shared_ptr<SetupAndSegment::IrDetection> mes, const std::vector<int> idxs);
+	void setPoseFromResult(const std::shared_ptr<IRSegmentation::IrDetection> mes, const std::vector<int> idxs);
 	Eigen::Isometry3d transformFromIdxs(const std::vector<Eigen::Vector3d>& mes, const std::vector<int>& idxs);
 	Eigen::Isometry3d findTransformFromPoints(const std::vector<Eigen::Vector3d>& mes, const std::vector<Eigen::Vector3d>& exp);
 	double meanMatchError(const std::vector<Eigen::Vector3d>& mesPts, const std::vector<int>& idxs);

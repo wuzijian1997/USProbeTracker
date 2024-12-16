@@ -35,22 +35,22 @@ const int IMAGE_Y_MINCROP = 0;
 
 //*********Contour Segmentation Constants**************
 const int CONTOUR_BIN_THRESHOLD = 222;
-const int COUNTOUR_MIN_AREA = 2;
-const int COUNTOUR_MAX_AREA = 450;
-const float CONTOUR_CONVEXITY = 0.66f;
-const float COUNTOUR_CIRCULARITY = 0.52f;
+const int COUNTOUR_MIN_AREA = 14;
+const int COUNTOUR_MAX_AREA = 250;
+const float CONTOUR_CONVEXITY = 0.68f;
+const float COUNTOUR_CIRCULARITY = 0.54f;
 
 //**********Blob Segmentation Constants****************
 const int BLOB_MIN_THRESHOLD = 215;
 const int BLOB_MAX_THRESHOLD = 255;
-const int BLOB_MIN_AREA = 2;
-const int BLOB_MAX_AREA = 450;
-const float BLOB_MIN_CONVEXITY = 0.62f;
+const int BLOB_MIN_AREA = 14;
+const int BLOB_MAX_AREA = 250;
+const float BLOB_MIN_CONVEXITY = 0.68f;
 const int BLOB_MIN_DSTANCE_BETWEEN = 2;
 
 //*******Find Keypoints Constants***************
 const float KEYPOINTS_MAX_INTENSITY = 1000.0f;
-const double NEAR_CLIP = 0.25f;
+const double NEAR_CLIP = 0.3f;
 const double FAR_CLIP = 1.7f; //Average Arm Span is 65 cm, we want the tracker to be about the same distance from eyes to hand
 
 
@@ -143,6 +143,8 @@ private:
 	//Params for contour detection
 	double _area, _cvxArea, _cvxity, _circy;
 
+
+	//std::mutex m_paramMutex;
 	cv::SimpleBlobDetector::Params _blob_params;
 	cv::Ptr<cv::SimpleBlobDetector> _detector;
 

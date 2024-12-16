@@ -2,8 +2,8 @@
 
 //***************Class Includes*************
 
-//#include "SetupAndSegment.h"
-//#include "PoseTracker.h"
+
+#include "PoseTracker.h"
 //#include "USVideoStreaming.h"
 //#include "ShellSensorReader.h"
 #include "RealSense.h"
@@ -32,6 +32,15 @@
 //std::cout << "dt:" << elapsed_ms << std::endl;
 
 
+
+
+Eigen::Vector3d marker1(0.06925,0.01133,0);
+Eigen::Vector3d marker2(0.03395,-0.02407,0);
+Eigen::Vector3d marker3(-0.05605,-0.02329,0);
+Eigen::Vector3d marker4(-0.03879,0.04455,0);
+auto geom= std::vector<Eigen::Vector3d>{ marker1, marker2, marker3, marker4 };
+
+
 cv::Mat ir_mat_left, ir_mat_right; //OpenCV Matrices of right/left IR
 bool is_data_returned = false;
 //Data structure returned by realsense class
@@ -53,6 +62,7 @@ int main()
 		auto ir_segmenter = std::make_shared<IRSegmentation>(REALSENSE_WIDTH, REALSENSE_HEIGHT, realsense_camera._depth_scale,IRSegmentation::LogLevel::Silent);
 		ir_segmenter->setDetectionMode(IRSegmentation::DetectionMode::Contour); //Sets the segmentation method
 		ir_segmenter->setCameraBoundaries(0,REALSENSE_HEIGHT-1,0,REALSENSE_WIDTH-1,NEAR_CLIP,FAR_CLIP); //Sets the camera boundaries
+		
 		double fx = realsense_camera._realSense_intrinsics_leftIR.fx;
 		double fy = realsense_camera._realSense_intrinsics_leftIR.fy;
 		double cx = realsense_camera._realSense_intrinsics_leftIR.ppx;
@@ -64,6 +74,31 @@ int main()
 			xy[1] = (uv[1] - cy) / fy; //Normalized y-coordinate
 
 			});
+
+		// ---- Start the pose calculator ----
+		PoseTracker poseTracker(ir_segmenter, geom, 0.011);
+		poseTracker.setJumpSettings(true,0.3,4);
+		poseTracker.setSmoothing(0.0f);
+
+
+
+		//Init some variables for display:
+		cv::Mat cameraMatrix = (cv::Mat_<double>(3, 3) << fx, 0, cx,
+			0, fy, cy,
+			0, 0, 1);
+
+		cv::Mat distCoeffs = (cv::Mat_<double>(1, 5) <<
+			realsense_camera._realSense_intrinsics_leftIR.coeffs[0], // k1
+			realsense_camera._realSense_intrinsics_leftIR.coeffs[1], // k2
+			realsense_camera._realSense_intrinsics_leftIR.coeffs[2], // p1
+			realsense_camera._realSense_intrinsics_leftIR.coeffs[3], // p2
+			realsense_camera._realSense_intrinsics_leftIR.coeffs[4]  // k3
+			);
+
+		cv::Mat rotation;
+		cv::Mat translation;
+		cv::Mat rvec;
+
 
 		//Starts the realsense thread
 		realsense_camera.start();
@@ -77,12 +112,13 @@ int main()
 
 			if (is_data_returned)
 			{
+
+				//***********************RealSense Conversions******************
 				//std::cout << "Entered" << std::endl;
 				//Converts left IR to vector representation
 				auto ir_data = reinterpret_cast<const uint8_t*>(realsense_data.irLeftFrame.get_data());
 				std::vector<uint8_t> ir_vector(ir_data, ir_data + (REALSENSE_HEIGHT * REALSENSE_WIDTH));
 				auto ir_ptr = std::make_unique<std::vector<uint8_t>>(std::move(ir_vector));
-
 
 				////Converts depth frame to vector representation //ToDO: Change this so I am not initializing an std:;vector<uint16_t> on every iteration
 
@@ -91,28 +127,84 @@ int main()
 				auto depth_ptr = std::make_unique<std::vector<uint16_t>>(std::move(depth_vector));
 				//std::cout << "Converted Frames" << std::endl;
 
-			
-
+				//Converts IR to OpenCV representation
 				ir_mat_left = cv::Mat(cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT), CV_8UC1, (void*)realsense_data.irLeftFrame.get_data());
-				//ir_mat_right = cv::Mat(cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT), CV_8UC1, (void*)realsense_data.irRightFrame.get_data());
+				ir_mat_right = cv::Mat(cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT), CV_8UC1, (void*)realsense_data.irRightFrame.get_data());
 
-				//std::cout << "Converted mat" << std::endl;
-				auto detection = ir_segmenter->findKeypointsWorldFrame(std::move(ir_ptr), std::move(depth_ptr));
-				//std::cout << "Got Keypoints" << std::endl;
-				////std::cout << "Success" << std::endl;
-				for (const auto& coord : detection->imCoords) {
-					 //draw the point on the image (circle with radius 3, red color)
-					cv::circle(ir_mat_left, cv::Point(coord[0], coord[1]), 3, cv::Scalar(0, 0, 255), -1);
+
+				//***********************Pose Computation***********************
+				poseTracker.update(std::move(ir_ptr), std::move(depth_ptr));
+				int i;
+				for (i = 0; i < 10; i++) {
+					if (poseTracker.hasNewPose()) break;
+					using namespace std::chrono_literals;
+					std::this_thread::sleep_for(10ms);
 				}
 
-				cv::imshow("left ir", ir_mat_left);
-				//cv::imshow("right ir", ir_mat_right);
+
+				if (i == 10) {
+					std::cout << "Failed to compute pose" << std::endl;
+				}
+				else {
+					Eigen::Matrix4d T = poseTracker.getPose();
+					//PoseTracker::IRPose mes = poseTracker.getLastMeasurement();
+					std::cout << "Computed pose" << std::endl;
+					//std::cout << T << std::endl;
+					//std::cout << mes.pose.matrix() << std::endl;
+
+					cv::Mat cvT(4, 4, CV_64F);
+					for (int i = 0; i < 4; ++i) {
+						for (int j = 0; j < 4; ++j) {
+							cvT.at<double>(i, j) = T(i, j);
+						}
+					}
+
+					rotation = cvT(cv::Range(0, 3), cv::Range(0, 3));
+					translation = cvT(cv::Range(0, 3), cv::Range(3, 4));
+					cv::Mat outputImage;
+					cv::cvtColor(ir_mat_left, outputImage, cv::COLOR_GRAY2BGR);
+					cv::Rodrigues(rotation, rvec);
+					cv::drawFrameAxes(outputImage, cameraMatrix, distCoeffs, rvec, translation, 0.1, 3);
+					cv::imshow("Pose Visualization", outputImage);
+					
+					for (const auto& coord : poseTracker.m_objectPose.imageCoords) {
+							// draw the point on the image (circle with radius 3, red color)
+							cv::circle(ir_mat_left, cv::Point(coord[0], coord[1]), 3, cv::Scalar(0, 0, 255), -1);
+					}
+
+
+
+					
+				}
+
+				cv::imshow("ir mat left", ir_mat_left);
 				char c = cv::waitKey(1);	//grabs key press, if q we close
 				if (c == 'q')
 				{
 					break;
 
 				}
+
+				
+
+
+				//std::cout << "Converted mat" << std::endl;
+				//auto detection = ir_segmenter->findKeypointsWorldFrame(std::move(ir_ptr), std::move(depth_ptr));
+				//std::cout << "Got Keypoints" << std::endl;
+				////std::cout << "Success" << std::endl;
+				//for (const auto& coord : detection->imCoords) {
+				//	 //draw the point on the image (circle with radius 3, red color)
+				//	cv::circle(ir_mat_left, cv::Point(coord[0], coord[1]), 3, cv::Scalar(0, 0, 255), -1);
+				//}
+
+				//cv::imshow("left ir", ir_mat_left);
+				////cv::imshow("right ir", ir_mat_right);
+				//char c = cv::waitKey(1);	//grabs key press, if q we close
+				//if (c == 'q')
+				//{
+				//	break;
+
+				//}
 
 			}
 

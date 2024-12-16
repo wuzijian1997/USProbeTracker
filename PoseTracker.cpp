@@ -1,7 +1,7 @@
 #include "PoseTracker.h"
 
 
-PoseTracker::PoseTracker(std::shared_ptr<SetupAndSegment> irTracker, std::vector<Eigen::Vector3d> geometry, float markerDiameter)
+PoseTracker::PoseTracker(std::shared_ptr<IRSegmentation> irTracker, std::vector<Eigen::Vector3d> geometry, float markerDiameter)
     : m_irTracker(irTracker)
     , m_markerGeom(geometry)
     , m_markerDiameter(markerDiameter)
@@ -26,7 +26,7 @@ PoseTracker::PoseTracker(std::shared_ptr<SetupAndSegment> irTracker, std::vector
     // Create the matrix of distances between markers
     m_markerDiffs.setZero(m_nPoints, m_nPoints);
     for (int i = 0; i < m_nPoints; i++) {
-        if (m_logLevel == SetupAndSegment::LogLevel::VeryVerbose)
+        if (m_logLevel == IRSegmentation::LogLevel::VeryVerbose)
             LOG << "Geom: " << m_markerGeom[i][0] << ", " << m_markerGeom[i][1] << ", " << m_markerGeom[i][2];
         for (int j = 0; j < m_nPoints; j++) {
             m_markerDiffs(i, j) = (m_markerGeom[i] - m_markerGeom[j]).norm();
@@ -70,7 +70,7 @@ bool PoseTracker::hasNewPose() {
     return m_hasNewPose;
 }
 
-void PoseTracker::update(std::unique_ptr<std::vector<uint16_t>> irIm, std::unique_ptr<std::vector<uint16_t>> depthMap) {
+void PoseTracker::update(std::unique_ptr<std::vector<uint8_t>> irIm, std::unique_ptr<std::vector<uint16_t>> depthMap) {
     // Launch the keypoint search asynchronously and store the future to check later
     //auto fut = std::async(std::launch::async, [this](const Isometry3d& T, std::unique_ptr<std::vector<uint16_t>> ir, std::unique_ptr<std::vector<uint16_t>> depth) { return m_irTracker->findKeypointsWorldFrame(std::move(ir), std::move(depth), T); }, world_T_cam, std::move(irIm), std::move(depthMap));
     //m_detectionQ.try_enqueue(std::move(fut));
@@ -119,13 +119,13 @@ double absval(double val) {
     return (val < 0) ? -val : val;
 }
 
-bool PoseTracker::preprocessMarkerDetection(std::shared_ptr<SetupAndSegment::IrDetection> detection) {
+bool PoseTracker::preprocessMarkerDetection(std::shared_ptr<IRSegmentation::IrDetection> detection) {
     // Remove obvious outliers that are too close, too far, or completely the wrong size
     size_t i = 0;
     size_t init = detection->points.size();
     while (i < init) {
         if (absval(detection->points[i][2]) > OUTLIER_FAR_CLIP || absval(detection->points[i][2]) < OUTLIER_NEAR_CLIP) {// || absval(detection->markerDiameters[i] - m_markerDiameter) > m_markerDiameter / 2) {
-            if (m_logLevel == SetupAndSegment::LogLevel::VeryVerbose)
+            if (m_logLevel == IRSegmentation::LogLevel::VeryVerbose)
                 LOG << "Removing outlier point [" << detection->points[i][0] << ", " << detection->points[i][1] << ", " << detection->points[i][2] << "] with diameter " << detection->markerDiameters[i];
             detection->points.erase(detection->points.begin() + i);
             detection->imCoords.erase(detection->imCoords.begin() + i);
@@ -175,7 +175,7 @@ bool PoseTracker::preprocessMarkerDetection(std::shared_ptr<SetupAndSegment::IrD
         }
     }
 
-    if (m_logLevel == SetupAndSegment::LogLevel::VeryVerbose)
+    if (m_logLevel == IRSegmentation::LogLevel::VeryVerbose)
         LOG << "Filtering kept " << detection->points.size() << " of " << init << " points";
 
     // Not enough points left over? Increase the size of the ROI again
@@ -187,10 +187,10 @@ bool PoseTracker::preprocessMarkerDetection(std::shared_ptr<SetupAndSegment::IrD
     return true;
 }
 
-void PoseTracker::processMarkerDetection(std::shared_ptr<SetupAndSegment::IrDetection> detection) {
+void PoseTracker::processMarkerDetection(std::shared_ptr<IRSegmentation::IrDetection> detection) {
     // ----------------------------------- Try to find point correspondences ---------------------------------------------
     // If the ith element of idxs equals j, then the ith measured point corresponds to the jth known point
-    if (m_logLevel == SetupAndSegment::LogLevel::VeryVerbose) {
+    if (m_logLevel == IRSegmentation::LogLevel::VeryVerbose) {
         std::string s = ""; int i = 0;
         for (const auto& v : detection->points) {
             s += std::to_string(v[0]) + ", " + std::to_string(v[1]) + ", " + std::to_string(v[2]) + "; Diameter: " + std::to_string(detection->markerDiameters[i]) + "\n";
@@ -206,7 +206,7 @@ void PoseTracker::processMarkerDetection(std::shared_ptr<SetupAndSegment::IrDete
     // Check if we got enough inliers - if we have mostly outliers, we can't do anything else so just return
     // I've never seen this condition triggered
     if (success && badMatch(idxs)) {
-        if (m_logLevel == SetupAndSegment::LogLevel::Verbose)
+        if (m_logLevel == IRSegmentation::LogLevel::Verbose)
             LOG << "Failed with bad match";
         poseCalcFailed();
         return;
@@ -222,15 +222,15 @@ void PoseTracker::processMarkerDetection(std::shared_ptr<SetupAndSegment::IrDete
                 if (idxs[i] > 0)
                     idxs[i] = -2;
 
-            if (m_logLevel == SetupAndSegment::LogLevel::Verbose)
+            if (m_logLevel == IRSegmentation::LogLevel::Verbose)
                 LOG << "Euclidean matching failed with match error " << err;
         }
-        else if (m_logLevel == SetupAndSegment::LogLevel::Verbose) LOG << "SUCCESS: Euclidean Matching with error " << err;
+        else if (m_logLevel == IRSegmentation::LogLevel::Verbose) LOG << "SUCCESS: Euclidean Matching with error " << err;
     }
 
     // Everything failed so far - try brute force
     if (!success) {
-        if (m_logLevel == SetupAndSegment::LogLevel::Verbose)
+        if (m_logLevel == IRSegmentation::LogLevel::Verbose)
             LOG << "Failed Euclidean matching";
 
         // Remove outliers
@@ -249,7 +249,7 @@ void PoseTracker::processMarkerDetection(std::shared_ptr<SetupAndSegment::IrDete
         if (mps.size() <= 5 && mps.size() > 2) {
             double err = bruteForceMatch(mps, idxs, idxsMinusOutliers, false);
             success = (err < m_matchThreshold);
-            if (m_logLevel == SetupAndSegment::LogLevel::Verbose) {
+            if (m_logLevel == IRSegmentation::LogLevel::Verbose) {
                 if (!success) LOG << "Failed brute force with error " << err;
                 else LOG << "SUCCESS: brute force with error" << err;
             }
@@ -260,7 +260,7 @@ void PoseTracker::processMarkerDetection(std::shared_ptr<SetupAndSegment::IrDete
     if (success) {
         double err = fillInMissing(detection->points, idxs);
         success = (err < m_matchThreshold&& err > 0);
-        if (m_logLevel == SetupAndSegment::LogLevel::Verbose) {
+        if (m_logLevel == IRSegmentation::LogLevel::Verbose) {
             if (!success) LOG << "Failed with error " << err << " after filling in missing"; // Never happens with 0.005 thresh
             else LOG << "SUCCESS: Filled in missing with error " << err;
         }
@@ -269,21 +269,21 @@ void PoseTracker::processMarkerDetection(std::shared_ptr<SetupAndSegment::IrDete
     // Look for markers bouncing around badly
     if (success && m_filterJumps) {
         success = noBadJumps(detection->points, idxs);
-        if (!success && m_logLevel == SetupAndSegment::LogLevel::Verbose) LOG << "Detected illegal jump";
+        if (!success && m_logLevel == IRSegmentation::LogLevel::Verbose) LOG << "Detected illegal jump";
     }
 
     // Calculate and return the resulting pose from the match
     if (success)
     {
         // We found a good match
-        if (m_logLevel == SetupAndSegment::LogLevel::Verbose)
+        if (m_logLevel == IRSegmentation::LogLevel::Verbose)
             LOG << "GOT POSE";
         m_lastPoseTime = time();
         setPoseFromResult(detection, idxs);
         m_hasNewPose = true;
         return;
     }
-    if (m_logLevel == SetupAndSegment::LogLevel::Verbose)
+    if (m_logLevel == IRSegmentation::LogLevel::Verbose)
         LOG << "FAILED POSE COMPUTATION";
     poseCalcFailed();
 }
@@ -293,7 +293,7 @@ void PoseTracker::poseCalcFailed()
     // Nothing worked. Don't use this sample
 }
 
-void PoseTracker::setPoseFromResult(std::shared_ptr<SetupAndSegment::IrDetection> mes, const std::vector<int> idxs)
+void PoseTracker::setPoseFromResult(std::shared_ptr<IRSegmentation::IrDetection> mes, const std::vector<int> idxs)
 {
     Eigen::Isometry3d p = transformFromIdxs(mes->points, idxs);
 
@@ -693,7 +693,7 @@ double PoseTracker::bruteForceMatch(const std::vector<Eigen::Vector3d>& mesPts, 
     else if (np == 5) permutations = m_perm5;
     else
     {
-        if (m_logLevel == SetupAndSegment::LogLevel::Verbose)
+        if (m_logLevel == IRSegmentation::LogLevel::Verbose)
             LOG << "Too many outliers - exiting brute force match";
         return 100;
         //int[] ints = new int[np];

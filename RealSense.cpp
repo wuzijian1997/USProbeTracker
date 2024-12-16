@@ -93,7 +93,7 @@ bool RealSense::RealSenseInit(int width, int height, int fps, float enable_laser
         // Check if the sensor supports auto exposure
         if (sensor.supports(RS2_OPTION_ENABLE_AUTO_EXPOSURE)) {
             // Enable auto exposure
-            sensor.set_option(RS2_OPTION_ENABLE_AUTO_EXPOSURE, 1.0f);
+            sensor.set_option(RS2_OPTION_ENABLE_AUTO_EXPOSURE, 0.0f); //Set to 1.0f for autoexposure, but I think it goofs stuff more
             std::cout << "Auto exposure enabled for sensor: "
                 << sensor.get_info(RS2_CAMERA_INFO_NAME) << std::endl;
         }
