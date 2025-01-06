@@ -136,10 +136,11 @@ std::shared_ptr<IRSegmentation::IrDetection> IRSegmentation::findKeypointsWorldF
     //Map to 3D
     if (success)
     {
-        cv::Mat outputImage;
+        //For display
+        /*cv::Mat outputImage;
         cv::drawKeypoints(im8b,keypoints,outputImage, cv::Scalar(0, 255, 0), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
         cv::imshow("Contours on Cropped", outputImage);
-        cv::waitKey(1);
+        cv::waitKey(1);*/
 
         //Save the 3D Points
         for (size_t i = 0; i < keypoints.size(); i++)

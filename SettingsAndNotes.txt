@@ -4,7 +4,27 @@ With IR Illuminator:
 depth image corresponds to left IR image (infrared stream #1)
 - I want to convert the depth info to meters
 
-Things to do:
-- We should set a world frame and keep it still somehow?
-	- Maybe place an AruCo marker on the patient's bed on a stationary part to reduce errors
-	- We will also be getting surface mesh of the patient
+
+
+Things to record:
+have a rigid transform from appendage frame to US tip frame in a .txt
+
+in calibrating.csv:
+- Pose of xiphoid process and points on mother's stomach => Goes to a separate csv which is updated by GUI when pressed
+
+in scannnig.csv:
+Initially:
+- Force zeroing (amount to offset x,y,z, computed at start using GUI)
+- Force Conversion Matrix => stored in separate .csv, but imported
+- Force Correction Matrix => stored in separate .csv, but imported
+
+On every iteration
+- Depth Video (corresponding frame in .csv) => This is what we synchronize to 
+- US Video (corresponding frame in .csv) 
+- Pose 
+- Force
+- IMU
+
+scanning.csv format (header):
+
+depth frame #, us frame #, CAM_T_US,T00,T01,T02,R00,R01,R02,R10,R11,R12,R20,R21,R22,FORCE_RAW,fr0,fr1,fr2,fr3,fr4,fr5,fr6,fr7,fr8,fr9,fr10,fr11,FORCE_XYZ,fx,fy,fz,IMU,temp,g0,g1,g2,a0,a1,a2

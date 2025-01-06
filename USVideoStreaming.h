@@ -1,5 +1,5 @@
 #pragma once
-#include "SetupAndSegment.h"
+#include "IRSegmentation.h" //Bunch of includes
 #include <Windows.h>
 #include <condition_variable>
 #include <queue>

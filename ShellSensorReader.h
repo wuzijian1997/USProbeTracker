@@ -1,7 +1,10 @@
 #pragma once
-#include "SetupAndSegment.h" //Has a bunch of includes
+#include "IRSegmentation.h" //Has a bunch of includes
 #include <Windows.h>
 #include <iostream>
+#include <fstream>
+#include <sstream>
+#include <vector>
 #include <condition_variable>
 #include <queue>
 
@@ -24,6 +27,12 @@ public:
 	
 	void getForceString(std::string& force_string);
 	void getTempIMUString(std::string& temp_imu_string);
+
+	//Helper methods
+	std::string calculateForceVals(std::string &force_string,Eigen::MatrixXd &calib_mat,Eigen::Vector3d &zeroing_offset);
+	Eigen::VectorXd forcestringToForceVector(std::string& raw_force_string);
+	std::string eigenForceToStringForce(Eigen::Vector3d& force_xyz);
+	Eigen::MatrixXd readCSVToEigenMatrix(const std::string& file_path, int rows, int cols);
 
 
 private:

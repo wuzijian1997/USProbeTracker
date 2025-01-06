@@ -4,8 +4,8 @@
 
 
 #include "PoseTracker.h"
-//#include "USVideoStreaming.h"
-//#include "ShellSensorReader.h"
+#include "USVideoStreaming.h"
+#include "ShellSensorReader.h"
 #include "RealSense.h"
 #include "IRSegmentation.h"
 
@@ -33,7 +33,7 @@
 
 
 
-
+//Defines the marker geometry to track
 Eigen::Vector3d marker1(0.06925,0.01133,0);
 Eigen::Vector3d marker2(0.03395,-0.02407,0);
 Eigen::Vector3d marker3(-0.05605,-0.02329,0);
@@ -100,6 +100,26 @@ int main()
 		cv::Mat rvec;
 
 
+		//************************Setup the Force Sensor************************
+		ShellSensorReader shellReader(SHELLSENSOR_PORTNAME, SHELLSENSOR_BAUDRATE,10); //Sets the baud rate, timeout is wait time thread before returning NaN's
+		//Initializes parameters, and checks if the port is connected
+		if (!shellReader.initialize())
+		{
+			std::cout << "Failed to Initialize Force Sensor Serial Stream" << std::endl;
+			return 0;
+		}
+
+
+		//Read in force calibration matrix
+		Eigen::MatrixXd force_calibration_mat=shellReader.readCSVToEigenMatrix("Resources/calmat.csv",3,13);
+
+		//Zeroing is set to zeros for now
+		Eigen::Vector3d force_zeroing_offset(0.0, 0.0, 0.0);
+
+		//String that we read force readings into
+		std::string raw_force_string, temp_imu_string,force_string_xyz;
+
+
 		//Starts the realsense thread
 		realsense_camera.start();
 		while (true)
@@ -108,82 +128,89 @@ int main()
 			RealSense::RealSenseData realsense_data;
 			is_data_returned=realsense_camera.getRealSenseData(realsense_data);
 			
-			//std::cout << "Got Frames with return val: " <<is_data_returned<< std::endl;
-
-			if (is_data_returned)
+			//!!!!!!!!!!!!Syncrhonized to the RealSense!!!!!!!!!!!!!!!!!!!!!!
+			if (is_data_returned) //Enters if depth/ir frames arrive
 			{
 
 				//***********************RealSense Conversions******************
-				//std::cout << "Entered" << std::endl;
 				//Converts left IR to vector representation
 				auto ir_data = reinterpret_cast<const uint8_t*>(realsense_data.irLeftFrame.get_data());
 				std::vector<uint8_t> ir_vector(ir_data, ir_data + (REALSENSE_HEIGHT * REALSENSE_WIDTH));
 				auto ir_ptr = std::make_unique<std::vector<uint8_t>>(std::move(ir_vector));
 
-				////Converts depth frame to vector representation //ToDO: Change this so I am not initializing an std:;vector<uint16_t> on every iteration
-
+				//Converts depth frame to vector representation //ToDO: Change this so I am not initializing an std:;vector<uint16_t> on every iteration
 				auto depth_data = reinterpret_cast<const uint16_t*>(realsense_data.depthFrameFiltered.get_data());
 				std::vector<uint16_t> depth_vector(depth_data, depth_data + (REALSENSE_HEIGHT * REALSENSE_WIDTH));
 				auto depth_ptr = std::make_unique<std::vector<uint16_t>>(std::move(depth_vector));
 				//std::cout << "Converted Frames" << std::endl;
 
 				//Converts IR to OpenCV representation
-				ir_mat_left = cv::Mat(cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT), CV_8UC1, (void*)realsense_data.irLeftFrame.get_data());
-				ir_mat_right = cv::Mat(cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT), CV_8UC1, (void*)realsense_data.irRightFrame.get_data());
+				//ir_mat_left = cv::Mat(cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT), CV_8UC1, (void*)realsense_data.irLeftFrame.get_data());
+				//ir_mat_right = cv::Mat(cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT), CV_8UC1, (void*)realsense_data.irRightFrame.get_data());
 
 
 				//***********************Pose Computation***********************
-				poseTracker.update(std::move(ir_ptr), std::move(depth_ptr));
-				int i;
-				for (i = 0; i < 10; i++) {
-					if (poseTracker.hasNewPose()) break;
-					using namespace std::chrono_literals;
-					std::this_thread::sleep_for(10ms);
-				}
+				//poseTracker.update(std::move(ir_ptr), std::move(depth_ptr));
+				//int i;
+				//for (i = 0; i < 10; i++) {
+				//	if (poseTracker.hasNewPose()) break;
+				//	using namespace std::chrono_literals;
+				//	std::this_thread::sleep_for(10ms);
+				//}
+
+				//if (i == 10) {
+				//	std::cout << "Failed to compute pose" << std::endl;
+				//}
+				//else {
+				//	Eigen::Matrix4d T = poseTracker.getPose();
+				//	//PoseTracker::IRPose mes = poseTracker.getLastMeasurement();
 
 
-				if (i == 10) {
-					std::cout << "Failed to compute pose" << std::endl;
-				}
-				else {
-					Eigen::Matrix4d T = poseTracker.getPose();
-					//PoseTracker::IRPose mes = poseTracker.getLastMeasurement();
-					std::cout << "Computed pose" << std::endl;
-					//std::cout << T << std::endl;
-					//std::cout << mes.pose.matrix() << std::endl;
+				//	cv::Mat cvT(4, 4, CV_64F);
+				//	for (int i = 0; i < 4; ++i) {
+				//		for (int j = 0; j < 4; ++j) {
+				//			cvT.at<double>(i, j) = T(i, j);
+				//		}
+				//	}
 
-					cv::Mat cvT(4, 4, CV_64F);
-					for (int i = 0; i < 4; ++i) {
-						for (int j = 0; j < 4; ++j) {
-							cvT.at<double>(i, j) = T(i, j);
-						}
-					}
-
-					rotation = cvT(cv::Range(0, 3), cv::Range(0, 3));
-					translation = cvT(cv::Range(0, 3), cv::Range(3, 4));
-					cv::Mat outputImage;
-					cv::cvtColor(ir_mat_left, outputImage, cv::COLOR_GRAY2BGR);
-					cv::Rodrigues(rotation, rvec);
-					cv::drawFrameAxes(outputImage, cameraMatrix, distCoeffs, rvec, translation, 0.1, 3);
-					cv::imshow("Pose Visualization", outputImage);
-					
-					for (const auto& coord : poseTracker.m_objectPose.imageCoords) {
-							// draw the point on the image (circle with radius 3, red color)
-							cv::circle(ir_mat_left, cv::Point(coord[0], coord[1]), 3, cv::Scalar(0, 0, 255), -1);
-					}
+				//	//Displaying image
+				//	//rotation = cvT(cv::Range(0, 3), cv::Range(0, 3));
+				//	//translation = cvT(cv::Range(0, 3), cv::Range(3, 4));
+				//	//cv::Mat outputImage;
+				//	//cv::cvtColor(ir_mat_left, outputImage, cv::COLOR_GRAY2BGR);
+				//	//cv::Rodrigues(rotation, rvec);
+				//	//cv::drawFrameAxes(outputImage, cameraMatrix, distCoeffs, rvec, translation, 0.1, 3);
+				//	//cv::imshow("Pose Visualization", outputImage);
+				//	//
+				//	//for (const auto& coord : poseTracker.m_objectPose.imageCoords) {
+				//	//		// draw the point on the image (circle with radius 3, red color)
+				//	//		cv::circle(ir_mat_left, cv::Point(coord[0], coord[1]), 3, cv::Scalar(0, 0, 255), -1);
+				//	//}
 
 
 
-					
-				}
+				//	
+				//}
 
-				cv::imshow("ir mat left", ir_mat_left);
-				char c = cv::waitKey(1);	//grabs key press, if q we close
-				if (c == 'q')
-				{
-					break;
 
-				}
+				//***************Force Readings***************
+				shellReader.getForceString(raw_force_string); //Gets most recent force string
+				shellReader.getTempIMUString(temp_imu_string); //Gets most recent Temperature + IMU String
+
+
+				//Converts raw force values (binary) to estimated force values, if raw forces are NaN's then NaN's are returned
+				force_string_xyz=shellReader.calculateForceVals(raw_force_string, force_calibration_mat, force_zeroing_offset);
+				std::cout << "Raw Force Reading: " << raw_force_string << ", XYZ Force Reading: " << force_string_xyz << std::endl;
+
+
+				//For Display
+				//cv::imshow("ir mat left", ir_mat_left);
+				//char c = cv::waitKey(1);	//grabs key press, if q we close
+				//if (c == 'q')
+				//{
+				//	break;
+
+				//}
 
 				
 

@@ -198,7 +198,7 @@ bool ShellSensorReader::checkLineTag(std::string& lineTag,std::string& serialLin
 void ShellSensorReader::getForceString(std::string& force_string)
 {
 	std::unique_lock<std::mutex> lock{ _sensorReadingMutex };
-	//Returns empty frame if waiting longer than 20 ms (50 Hz)
+	//Returns NaNs if waiting longer than 20 ms (50 Hz)
 	if (!_ForceSenseReadingArrived.wait_for(lock, std::chrono::milliseconds(_timeout), [this]() { return !_forceSenseQueue.empty(); }))
 	{
 		//We had a timeout event, return with force_string set to 12 NaN's
@@ -223,10 +223,10 @@ void ShellSensorReader::getForceString(std::string& force_string)
 void ShellSensorReader::getTempIMUString(std::string& temp_imu_string)
 {
 	std::unique_lock<std::mutex> lock{ _sensorReadingMutex };
-	//Returns empty frame if waiting longer than 20 ms (50 Hz)
+	//Returns NaNs if waiting longer than 20 ms (50 Hz)
 	if (!_tempImuReadingArrived.wait_for(lock, std::chrono::milliseconds(_timeout), [this]() { return !_tempImuQueue.empty(); }))
 	{
-		//We had a timeout event, return with force_string set to 12 NaN's
+		//We had a timeout event, return with string set to 6 NaN's
 		temp_imu_string = SIX_NaNs;
 		lock.unlock();
 		return;
@@ -243,5 +243,85 @@ void ShellSensorReader::getTempIMUString(std::string& temp_imu_string)
 	}
 	lock.unlock();
 	return;
+
+}
+
+
+//Helper method to convert raw force sensor readings to actual forces
+
+std::string ShellSensorReader::calculateForceVals(std::string &raw_force_string, Eigen::MatrixXd &calib_mat, Eigen::Vector3d &zeroing_offset)
+{
+	
+	//raw_force_string is 1x12 raw sensor string
+	//raw_force_vector is 1x13 eigen vector: 1x12 raw sensor values/4096 with a 1 appended
+	Eigen::VectorXd raw_force_vector = forcestringToForceVector(raw_force_string);
+
+	//Computes the x,y,z force from initial ATI reading
+	Eigen::Vector3d force_xyz = calib_mat * raw_force_vector.transpose();
+
+	//Adds the zeroing offset if present
+	force_xyz = force_xyz + zeroing_offset;
+
+
+	//Converts the Eigen vector back to a string
+	std::string string_force_xyz = eigenForceToStringForce(force_xyz);
+	return string_force_xyz;
+
+}
+
+Eigen::VectorXd ShellSensorReader::forcestringToForceVector(std::string& raw_force_string)
+{
+	Eigen::VectorXd raw_force_vector(13); //Inits the eigen force vector
+	std::stringstream ss(raw_force_string);
+
+	std::string substr;
+	int i = 0;
+
+	while (std::getline(ss, substr, ',') && i < 12) {
+		raw_force_vector[i] = std::stod(substr) / 4096.0f; // Normalize value
+		i++;
+	}
+
+	raw_force_vector[12] = 1.0f;
+	return raw_force_vector;
+
+}
+
+std::string ShellSensorReader::eigenForceToStringForce(Eigen::Vector3d& force_xyz)
+{
+	std::ostringstream oss;
+	for (int i = 0; i < force_xyz.size(); ++i) {
+		oss << force_xyz[i];
+		if (i != force_xyz.size() - 1) { // Add a comma between elements
+			oss << ",";
+		}
+	}
+	std::string string_force = oss.str();
+	return string_force;
+}
+
+Eigen::MatrixXd ShellSensorReader::readCSVToEigenMatrix(const std::string& file_path, int rows, int cols)
+{
+	//Creates ifstream object to read csv row by row
+	std::ifstream file(file_path);
+	Eigen::MatrixXd matrix(rows, cols);
+	std::string line;
+	int row = 0;
+
+	while (std::getline(file, line) && row < rows) {
+		std::stringstream line_stream(line);
+		std::string cell;
+		int col = 0;
+
+		while (std::getline(line_stream, cell, ',') && col < cols) {
+			matrix(row, col) = std::stod(cell);
+			++col;
+		}
+
+		++row;
+	}
+
+	file.close();
+	return matrix;
 
 }
