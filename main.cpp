@@ -112,7 +112,7 @@ int main()
 
 		//Read in force calibration matrix
 		Eigen::MatrixXd force_calibration_mat=shellReader.readCSVToEigenMatrix("Resources/calmat.csv",3,13);
-
+		
 		//Zeroing is set to zeros for now
 		Eigen::Vector3d force_zeroing_offset(0.0, 0.0, 0.0);
 

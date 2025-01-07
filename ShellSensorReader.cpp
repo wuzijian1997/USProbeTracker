@@ -251,20 +251,29 @@ void ShellSensorReader::getTempIMUString(std::string& temp_imu_string)
 
 std::string ShellSensorReader::calculateForceVals(std::string &raw_force_string, Eigen::MatrixXd &calib_mat, Eigen::Vector3d &zeroing_offset)
 {
-	
-	//raw_force_string is 1x12 raw sensor string
-	//raw_force_vector is 1x13 eigen vector: 1x12 raw sensor values/4096 with a 1 appended
-	Eigen::VectorXd raw_force_vector = forcestringToForceVector(raw_force_string);
+	std::string string_force_xyz;
 
-	//Computes the x,y,z force from initial ATI reading
-	Eigen::Vector3d force_xyz = calib_mat * raw_force_vector.transpose();
+	if (raw_force_string.find("NaN") != std::string::npos)
+	{
+		string_force_xyz = "NaN,NaN,NaN";
+	}
+	else {
 
-	//Adds the zeroing offset if present
-	force_xyz = force_xyz + zeroing_offset;
+		//raw_force_string is 1x12 raw sensor string
+		//raw_force_vector is 1x13 eigen vector: 1x12 raw sensor values/4096 with a 1 appended
+		
+		Eigen::VectorXd raw_force_vector = forcestringToForceVector(raw_force_string);
+		
+		//Computes the x,y,z force from initial ATI reading
+		Eigen::Vector3d force_xyz = calib_mat * raw_force_vector; // .transpose(); Transpose here is wrong
+
+		//Adds the zeroing offset if present
+		force_xyz = force_xyz + zeroing_offset;
 
 
-	//Converts the Eigen vector back to a string
-	std::string string_force_xyz = eigenForceToStringForce(force_xyz);
+		//Converts the Eigen vector back to a string
+		string_force_xyz = eigenForceToStringForce(force_xyz);
+	}
 	return string_force_xyz;
 
 }
