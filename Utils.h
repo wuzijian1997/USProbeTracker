@@ -13,3 +13,4 @@ Eigen::VectorXd forcestringToForceVector(std::string& raw_force_string);
 std::string eigenForceToStringForce(Eigen::Vector3d& force_xyz);
 Eigen::MatrixXd readCSVToEigenMatrix(const std::string& file_path, int rows, int cols);
 std::string EigenMatrixToString(Eigen::MatrixXd& matrix);
+std::string getDatetimeWithMilliseconds();

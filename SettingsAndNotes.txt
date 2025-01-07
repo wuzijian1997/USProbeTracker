@@ -11,6 +11,7 @@ have a rigid transform from appendage frame to US tip frame in a .txt
 
 in calibrating.csv:
 - Pose of xiphoid process and points on mother's stomach => Goes to a separate csv which is updated by GUI when pressed
+- Record time when last point is captured
 
 in scannnig.csv:
 Initially:
@@ -33,9 +34,9 @@ system time, run time, depth frame #, us frame #, CAM_T_US,T00,T01,T02,R00,R01,R
 data directory organization:
 
 - data => root_path
-  - P01 => participant_directory (increments and creates new if NaN's, 
-    - calibrating_datetime.csv
-    - scanning_datetime.csv 
+  - P01 => participant_directory (increments and creates new if NaN's, creates new if it doesn't exist)
+    - calibrate_datetime.csv 
+    - scan_datetime.csv (creates filename)
     - ...
   - P02
     - ...

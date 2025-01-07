@@ -117,3 +117,20 @@ std::string EigenMatrixToString(Eigen::MatrixXd& matrix)
 	return oss.str();
 
 }
+
+std::string getDatetimeWithMilliseconds() {
+	auto now = std::chrono::system_clock::now();
+	auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()) % 1000;
+	
+	auto timer = std::chrono::system_clock::to_time_t(now);
+
+	// convert to broken time
+	std::tm bt = *std::localtime(&timer);
+
+	std::ostringstream oss;
+
+	oss << std::put_time(&bt, "%d-%m-%Y %H:%M:%S"); // HH:MM:SS
+	oss << '.' << std::setfill('0') << std::setw(3) << ms.count();
+
+	return oss.str();
+}

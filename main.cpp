@@ -3,12 +3,13 @@
 //***************Class Includes*************
 
 
-#include "PoseTracker.h"
-#include "USVideoStreaming.h"
-#include "ShellSensorReader.h"
-#include "RealSense.h"
-#include "IRSegmentation.h"
-#include "Utils.h"
+#include "PoseTracker.h" //Does US probe pose tracking, runs on separate thread
+#include "USVideoStreaming.h" //Streams US video from scrcpy window, runs on separate thread
+#include "ShellSensorReader.h" //Reads the force sensor and IMU, runs on separate thread
+#include "RealSense.h" //Hardware interface with RealSense D435i camera, runs on separate thread
+#include "IRSegmentation.h" //Segments the IR markers in the RealSense image
+#include "Utils.h" //Utility functions (i.e. file conversion methods
+#include "Datalogger.h" //Logs scanning data to .csv
 
 
 //*****************Init Vars****************
@@ -112,13 +113,18 @@ int main()
 
 
 		//Read in force calibration matrix
-		Eigen::MatrixXd force_calibration_mat=readCSVToEigenMatrix("Resources/calmat.csv",3,13);
-		
+		Eigen::MatrixXd force_calibration_mat=readCSVToEigenMatrix("Resources/calmat.csv",3,13);		
 		//Zeroing is set to zeros for now
 		Eigen::Vector3d force_zeroing_offset(0.0, 0.0, 0.0);
-
 		//String that we read force readings into
 		std::string raw_force_string, temp_imu_string,force_string_xyz;
+
+
+		//**********************Init Datalogger***********************
+		
+		//Initializes the datalogger object, "NaN" for the root and data subdirectory
+		//defaults it to data/PXX where XX is the most recent participant number
+		Datalogger datalogger("NaN", "NaN", force_calibration_mat, force_zeroing_offset);
 
 
 		//Starts the realsense thread
@@ -202,6 +208,20 @@ int main()
 				//Converts raw force values (binary) to estimated force values, if raw forces are NaN's then NaN's are returned
 				force_string_xyz=calculateForceVals(raw_force_string, force_calibration_mat, force_zeroing_offset);
 				std::cout << "Raw Force Reading: " << raw_force_string << ", XYZ Force Reading: " << force_string_xyz << std::endl;
+
+
+				//***************Logging Data******************
+				Eigen::Matrix4d dummyPose;
+				dummyPose << 1, 0, 0, 5,
+							0, 1, 0, 10,
+							0, 0, 1, 15,
+							0, 0, 0, 1;
+				double dummy_seconds = 1.0f;
+				int dummy_frame_num = 1;
+				datalogger.writeCSVRow(dummy_seconds, dummy_frame_num, dummy_frame_num, dummyPose, raw_force_string, force_string_xyz, temp_imu_string);
+
+
+
 
 
 				//For Display
