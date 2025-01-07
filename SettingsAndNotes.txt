@@ -15,7 +15,7 @@ in calibrating.csv:
 in scannnig.csv:
 Initially:
 - Force zeroing (amount to offset x,y,z, computed at start using GUI)
-- Force Conversion Matrix => stored in separate .csv, but imported
+- Force Calibration Matrix => stored in separate .csv, but imported
 - Force Correction Matrix => stored in separate .csv, but imported
 
 On every iteration
@@ -27,4 +27,15 @@ On every iteration
 
 scanning.csv format (header):
 
-depth frame #, us frame #, CAM_T_US,T00,T01,T02,R00,R01,R02,R10,R11,R12,R20,R21,R22,FORCE_RAW,fr0,fr1,fr2,fr3,fr4,fr5,fr6,fr7,fr8,fr9,fr10,fr11,FORCE_XYZ,fx,fy,fz,IMU,temp,g0,g1,g2,a0,a1,a2
+system time, run time, depth frame #, us frame #, CAM_T_US,T00,T01,T02,R00,R01,R02,R10,R11,R12,R20,R21,R22,FORCE_RAW,fr0,fr1,fr2,fr3,fr4,fr5,fr6,fr7,fr8,fr9,fr10,fr11,FORCE_XYZ,fx,fy,fz,IMU,temp,g0,g1,g2,a0,a1,a2
+
+
+data directory organization:
+
+- data => root_path
+  - P01 => participant_directory (increments and creates new if NaN's, 
+    - calibrating_datetime.csv
+    - scanning_datetime.csv 
+    - ...
+  - P02
+    - ...

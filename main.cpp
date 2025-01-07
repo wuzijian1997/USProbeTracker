@@ -8,6 +8,7 @@
 #include "ShellSensorReader.h"
 #include "RealSense.h"
 #include "IRSegmentation.h"
+#include "Utils.h"
 
 
 //*****************Init Vars****************
@@ -111,7 +112,7 @@ int main()
 
 
 		//Read in force calibration matrix
-		Eigen::MatrixXd force_calibration_mat=shellReader.readCSVToEigenMatrix("Resources/calmat.csv",3,13);
+		Eigen::MatrixXd force_calibration_mat=readCSVToEigenMatrix("Resources/calmat.csv",3,13);
 		
 		//Zeroing is set to zeros for now
 		Eigen::Vector3d force_zeroing_offset(0.0, 0.0, 0.0);
@@ -199,7 +200,7 @@ int main()
 
 
 				//Converts raw force values (binary) to estimated force values, if raw forces are NaN's then NaN's are returned
-				force_string_xyz=shellReader.calculateForceVals(raw_force_string, force_calibration_mat, force_zeroing_offset);
+				force_string_xyz=calculateForceVals(raw_force_string, force_calibration_mat, force_zeroing_offset);
 				std::cout << "Raw Force Reading: " << raw_force_string << ", XYZ Force Reading: " << force_string_xyz << std::endl;
 
 
