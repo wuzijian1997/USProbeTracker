@@ -43,12 +43,13 @@ Datalogger::Datalogger(std::string root_path, std::string participant_directory,
 
 	//Gets the current datetime to name the file
 	auto t = std::time(nullptr);
-	auto tm = *std::localtime(&t);
+	std::tm bt;
+	localtime_s(&bt, &t);
 	std::ostringstream oss;
-	oss << std::put_time(&tm, "%d-%m-%Y %H:%M:%S");
+	oss << std::put_time(&bt, "%d-%m-%Y_%H-%M-%S");
 	auto datetime_str = oss.str();
 
-	_csv_filename = _data_path + "/scan_" + datetime_str+ ".csv";
+	_csv_filename = _data_path + "/scandata_" + datetime_str+ ".csv";
 
 	//Creates the .csv file
 	_csv_file.open(_csv_filename);
@@ -67,21 +68,44 @@ Datalogger::Datalogger(std::string root_path, std::string participant_directory,
 	//Writes these strings to the csv
 	_csv_file << "Force Zeroing XYZ:\n";
 	_csv_file << zeroing_offset_string;
+	_csv_file << "\n";
 	_csv_file << "Force Calibration Matrix (final column bias):\n";
 	_csv_file << calib_mat_string;
-	
+	_csv_file << "\n";
+
+	//Filename for the depth and ultrasound frames
+	_depth_file = _data_path + "/depthvideo_"+ datetime_str+".mp4";
+	_us_file = _data_path + "/usvideo_" + datetime_str+".mp4";
+
+	//Opens ffmpef applications as a subprocess
+	//FFMPEG input: RAW 16-bit grayscale images
+	//FFMPEG ouput: 16-bit H.265 video
+
+	std::string depth_ffmpeg_cmd = "ffmpeg -y -f rawvideo -vcodec rawvideo "
+		"-pixel_format gray16le -video_size " + std::to_string(REALSENSE_WIDTH) + "x" + std::to_string(REALSENSE_HEIGHT) +
+		" -r " + std::to_string(REALSENSE_FPS) + " -i pipe: -vcodec libx265 -crf 24 -pix_fmt gray16le " + _depth_file;
+	_depth_pipeout = _popen(depth_ffmpeg_cmd.c_str(), "wb");
+	if (!_depth_pipeout)
+	{
+		throw std::runtime_error("Failed to open FFMPEG subprocess for depth frames.");
+	}
+
 
 }
 
 Datalogger::~Datalogger()
 {
 	_csv_file.close();
+	fflush(_depth_pipeout);
+	_pclose(_depth_pipeout);
 
 }
 
 void Datalogger::close()
 {
 	_csv_file.close();
+	fflush(_depth_pipeout);
+	_pclose(_depth_pipeout);
 }
 
 
@@ -98,8 +122,8 @@ void Datalogger::writeCSVRow(double& run_seconds, int& depth_frame_num, int& us_
 
 	//converts cam_T_us to be a string
 	std::string cam_T_us_string = std::to_string(cam_T_us(0, 3)) + "," + std::to_string(cam_T_us(1, 3)) + "," + std::to_string(cam_T_us(2, 3)) + "," +
-		std::to_string(cam_T_us(0, 0)) + "," + std::to_string(cam_T_us(0, 1)) + "," + std::to_string(cam_T_us(0, 2)) +
-		std::to_string(cam_T_us(1, 0)) + "," + std::to_string(cam_T_us(1, 1)) + "," + std::to_string(cam_T_us(1, 2)) +
+		std::to_string(cam_T_us(0, 0)) + "," + std::to_string(cam_T_us(0, 1)) + "," + std::to_string(cam_T_us(0, 2)) + "," +
+		std::to_string(cam_T_us(1, 0)) + "," + std::to_string(cam_T_us(1, 1)) + "," + std::to_string(cam_T_us(1, 2)) + "," +
 		std::to_string(cam_T_us(2, 0)) + "," + std::to_string(cam_T_us(2, 1)) + "," + std::to_string(cam_T_us(2, 2));
 
 	row_to_write = system_time + "," + std::to_string(run_seconds) + "," + std::to_string(depth_frame_num) + "," + std::to_string(us_frame_num) + "," +
@@ -108,4 +132,15 @@ void Datalogger::writeCSVRow(double& run_seconds, int& depth_frame_num, int& us_
 	//writes the row
 	_csv_file << row_to_write;
 
+}
+
+void Datalogger::writeDepthFrame(const cv::Mat& frame)
+{
+	if (frame.type() != CV_16UC1) {
+		throw std::invalid_argument("Depth frames must be of type CV_16UC1.");
+	}
+	if (!_depth_pipeout) {
+		throw std::runtime_error("FFMPEG subprocess for depth is not open.");
+	}
+	fwrite(frame.data, 1, REALSENSE_WIDTH * REALSENSE_HEIGHT * 2, _depth_pipeout);
 }

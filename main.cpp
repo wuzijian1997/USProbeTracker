@@ -48,6 +48,10 @@ bool is_data_returned = false;
 //Data structure returned by realsense class
 int main()
 {
+	
+	std::cout << cv::getBuildInformation() << std::endl;
+	return 0;
+
 	//Inits the realsense camera object
 	RealSense realsense_camera(10); //timeout is the amount of time we wait for realsense thread to update the data
 	 
@@ -124,9 +128,11 @@ int main()
 		
 		//Initializes the datalogger object, "NaN" for the root and data subdirectory
 		//defaults it to data/PXX where XX is the most recent participant number
-		Datalogger datalogger("NaN", "NaN", force_calibration_mat, force_zeroing_offset);
+		Datalogger datalogger("NaN", "P0", force_calibration_mat, force_zeroing_offset);
 
 
+		//********************Init Vars**********************
+		int depth_frame_count = 0;
 		//Starts the realsense thread
 		realsense_camera.start();
 		while (true)
@@ -207,7 +213,7 @@ int main()
 
 				//Converts raw force values (binary) to estimated force values, if raw forces are NaN's then NaN's are returned
 				force_string_xyz=calculateForceVals(raw_force_string, force_calibration_mat, force_zeroing_offset);
-				std::cout << "Raw Force Reading: " << raw_force_string << ", XYZ Force Reading: " << force_string_xyz << std::endl;
+				//std::cout << "Raw Force Reading: " << raw_force_string << ", XYZ Force Reading: " << force_string_xyz << std::endl;
 
 
 				//***************Logging Data******************
@@ -218,9 +224,14 @@ int main()
 							0, 0, 0, 1;
 				double dummy_seconds = 1.0f;
 				int dummy_frame_num = 1;
-				datalogger.writeCSVRow(dummy_seconds, dummy_frame_num, dummy_frame_num, dummyPose, raw_force_string, force_string_xyz, temp_imu_string);
 
 
+				datalogger.writeCSVRow(dummy_seconds, depth_frame_count, dummy_frame_num, dummyPose, raw_force_string, force_string_xyz, temp_imu_string);
+				
+				//Writes the depth frame to the depth video
+				cv::Mat depth_mat(cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT), CV_16UC1, (void*)realsense_data.depthFrame.get_data(), cv::Mat::AUTO_STEP);
+				datalogger.writeDepthFrame(depth_mat);
+				depth_frame_count++; //Increments the depth frame counter
 
 
 

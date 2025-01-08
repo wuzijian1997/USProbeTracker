@@ -1,11 +1,13 @@
 #pragma once
 #include "IRSegmentation.h" //Has a bunch of includes
+#include "RealSense.h"
 #include "Utils.h"
 #include <Windows.h>
 #include <iostream>
 #include <fstream>
 #include <sstream>
 #include <vector>
+
 
 //For file management
 #include <filesystem>
@@ -32,12 +34,16 @@ public:
 		Eigen::Matrix4d& cam_T_us, std::string& raw_force_string,
 		std::string& force_string_xyz, std::string& temp_imu_string);
 
+	void writeDepthFrame(const cv::Mat& frame);
+	
 
+private:
 	//Class Vars
 	std::ofstream _csv_file;
 	std::string _data_path,_csv_filename;
-
-private:
+	std::string _depth_file, _us_file;
+	FILE* _depth_pipeout,_us_pipeout;
+	
 
 };
 

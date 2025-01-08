@@ -3,6 +3,7 @@
 //C++ Includes
 #include <iostream>
 #include <string>
+#include <stdio.h>
 
 //OpenCV Includes
 #include <opencv2/opencv.hpp>
@@ -14,7 +15,8 @@
 #include <opencv2/core/cuda.hpp>
 #include <opencv2/cudafeatures2d.hpp>
 #include <opencv2/world.hpp>
-
+#include <opencv2/core.hpp>
+#include <opencv2/videoio.hpp>
 //RealSense Includes
 #include <librealsense2/rs.hpp>
 
@@ -105,6 +107,8 @@ public:
 	void setDetectionMode(DetectionMode mode);
 
 	LogLevel getLogLevel();
+
+	double m_depth_scale; //depth scale that we use
 	
 	//Finds marker points in the world frame
 	std::shared_ptr<IrDetection> findKeypointsWorldFrame(std::unique_ptr<std::vector<uint8_t>> irIm, std::unique_ptr<std::vector<uint16_t>> depthMap);
@@ -138,7 +142,7 @@ private:
 	int m_imWidth = REALSENSE_WIDTH;
 	int m_imHeight = REALSENSE_HEIGHT;
 
-	double m_depth_scale; //depth scale that we use
+	
 
 	//Params for contour detection
 	double _area, _cvxArea, _cvxity, _circy;

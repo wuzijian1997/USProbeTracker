@@ -125,11 +125,13 @@ std::string getDatetimeWithMilliseconds() {
 	auto timer = std::chrono::system_clock::to_time_t(now);
 
 	// convert to broken time
-	std::tm bt = *std::localtime(&timer);
+	std::tm bt;
+	localtime_s(&bt, &timer);
+	
 
 	std::ostringstream oss;
 
-	oss << std::put_time(&bt, "%d-%m-%Y %H:%M:%S"); // HH:MM:SS
+	oss << std::put_time(&bt, "%d-%m-%Y_%H-%M-%S"); // HH:MM:SS
 	oss << '.' << std::setfill('0') << std::setw(3) << ms.count();
 
 	return oss.str();
