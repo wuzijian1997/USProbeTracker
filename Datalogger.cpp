@@ -83,13 +83,13 @@ Datalogger::Datalogger(std::string root_path, std::string participant_directory,
 
 	std::string depth_ffmpeg_cmd = "ffmpeg -y -f rawvideo -vcodec rawvideo "
 		"-pixel_format gray16le -video_size " + std::to_string(REALSENSE_WIDTH) + "x" + std::to_string(REALSENSE_HEIGHT) +
-		" -r " + std::to_string(REALSENSE_FPS) + " -i pipe: -vcodec libx265 -crf 24 -pix_fmt gray16le " + _depth_file;
+		" -r " + std::to_string(REALSENSE_FPS) + " -i pipe: -vcodec ffv1 -pix_fmt gray16le " + _depth_file;
+	std::cout << "Wrote Command" << std::endl;
 	_depth_pipeout = _popen(depth_ffmpeg_cmd.c_str(), "wb");
 	if (!_depth_pipeout)
 	{
 		throw std::runtime_error("Failed to open FFMPEG subprocess for depth frames.");
 	}
-
 
 }
 
@@ -143,4 +143,5 @@ void Datalogger::writeDepthFrame(const cv::Mat& frame)
 		throw std::runtime_error("FFMPEG subprocess for depth is not open.");
 	}
 	fwrite(frame.data, 1, REALSENSE_WIDTH * REALSENSE_HEIGHT * 2, _depth_pipeout);
+	//std::cout << "Wrote Frame" << std::endl;
 }

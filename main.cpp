@@ -26,8 +26,8 @@
 //
 //bool continueUS = true;
 
-//std::chrono::steady_clock::time_point last_time;
-//std::chrono::steady_clock::time_point curr_time;
+std::chrono::steady_clock::time_point last_time;
+std::chrono::steady_clock::time_point curr_time;
 //last_time = std::chrono::steady_clock::now();
 //curr_time = std::chrono::steady_clock::now();
 //auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_time - last_time).count();
@@ -49,8 +49,6 @@ bool is_data_returned = false;
 int main()
 {
 	
-	std::cout << cv::getBuildInformation() << std::endl;
-	return 0;
 
 	//Inits the realsense camera object
 	RealSense realsense_camera(10); //timeout is the amount of time we wait for realsense thread to update the data
@@ -230,6 +228,7 @@ int main()
 				
 				//Writes the depth frame to the depth video
 				cv::Mat depth_mat(cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT), CV_16UC1, (void*)realsense_data.depthFrame.get_data(), cv::Mat::AUTO_STEP);
+
 				datalogger.writeDepthFrame(depth_mat);
 				depth_frame_count++; //Increments the depth frame counter
 
