@@ -18,6 +18,9 @@ Initially:
 - Force zeroing (amount to offset x,y,z, computed at start using GUI)
 - Force Calibration Matrix => stored in separate .csv, but imported
 - Force Correction Matrix => stored in separate .csv, but imported
+- Left IR Intrinsics
+- Depth Scale
+
 
 On every iteration
 - Depth Video (corresponding frame in .csv) => This is what we synchronize to 
@@ -37,6 +40,55 @@ data directory organization:
   - P01 => participant_directory (increments and creates new if NaN's, creates new if it doesn't exist)
     - calibrate_datetime.csv 
     - scan_datetime.csv (creates filename)
-    - ...
+    - depth_frames_datetime/
+      - depthframe_1.png
   - P02
     - ...
+
+
+
+Video File Size Tests (15 seconds of run-time):
+
+-i pipe: -vcodec ffv1 -pix_fmt gray16le
+102 MB
+
+-i pipe: -vcodec ffv1 -level 3 -coder 1 -pix_fmt gray16le
+100 MB
+
+-i pipe: -vcodec ffv1 -level 3 -coder 2 -pix_fmt gray16le
+91.3 MB
+
+-i pipe: -vcodec ffv1 -level 3 -coder 2 -slices 4 -pix_fmt gray16le
+79.0 MB
+
+-i pipe: -vcodec ffv1 -level 3 -coder 2 -slices 4 -g 1 -pix_fmt gray16le
+
+94.7 MB
+
+-i pipe: -vcodec ffv1 -level 3 -coder 2 -slices 4 -context 1 -pix_fmt gray16le
+81.0 MB
+
+-i pipe: -vcodec ffv1 -level 3 -coder 2 -slices 4 -context 1 -g 1 -pix_fmt gray16le
+98.1 MB
+
+
+
+Video File Size Tests with different real-sense settings (15 seconds):
+
+all with above optimized codec
+- 848x480 fps=90.0f
+78.8 MB
+
+- 848x480 fps=60.0f
+78.2 MB
+
+- 848x480 fps=30.0f
+47.4 MB
+
+- 640x480 fps=30.0f
+34.6 MB
+
+
+
+Now with the zstandard library for compression:
+

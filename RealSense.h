@@ -21,7 +21,7 @@
 //**********RealSense Constants***************
 const int REALSENSE_WIDTH = 848;
 const int REALSENSE_HEIGHT = 480;
-const double REALSENSE_FPS = 90.0f;
+const double REALSENSE_FPS = 30.0f;
 const float ENABLE_REALSENSE_LASER = 1.0f; //1 if we want the laser on
 const float REALSENSE_LASER_POWER = 50.0f;
 const float REALSENSE_GAIN = 16.0f; //Gain of IR image, key for removing noise

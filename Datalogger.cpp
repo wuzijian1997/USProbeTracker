@@ -79,17 +79,30 @@ Datalogger::Datalogger(std::string root_path, std::string participant_directory,
 
 	//Opens ffmpef applications as a subprocess
 	//FFMPEG input: RAW 16-bit grayscale images
-	//FFMPEG ouput: 16-bit H.265 video
+	//FFMPEG ouput: 16-bit FFV1 video
 
 	std::string depth_ffmpeg_cmd = "ffmpeg -y -f rawvideo -vcodec rawvideo "
 		"-pixel_format gray16le -video_size " + std::to_string(REALSENSE_WIDTH) + "x" + std::to_string(REALSENSE_HEIGHT) +
-		" -r " + std::to_string(REALSENSE_FPS) + " -i pipe: -vcodec ffv1 -pix_fmt gray16le " + _depth_file;
-	std::cout << "Wrote Command" << std::endl;
+		" -r " + std::to_string(REALSENSE_FPS) + " -i pipe: -vcodec ffv1 -level 3 -coder 2 -slices 4 -pix_fmt gray16le "+_depth_file; //" + _depth_file;
+	
 	_depth_pipeout = _popen(depth_ffmpeg_cmd.c_str(), "wb");
 	if (!_depth_pipeout)
 	{
 		throw std::runtime_error("Failed to open FFMPEG subprocess for depth frames.");
 	}
+
+	//Opens the Zstandard compressed file for writting
+	//if (fopen_s(&_depth_zstd_file, _depth_file.c_str(), "wb") != 0) {
+	//	throw std::runtime_error("Failed to open compressed file.");
+	//}
+
+	//_depth_zstd_ctx = ZSTD_createCCtx();
+	//if (!_depth_zstd_ctx) {
+	//	throw std::runtime_error("Failed to create Zstandard context.");
+	//}
+
+	//// Allocate compression buffer
+	//_depth_compressed_buffer.resize(ZSTD_compressBound(65536)); // Adjust size as needed
 
 }
 
@@ -99,6 +112,16 @@ Datalogger::~Datalogger()
 	fflush(_depth_pipeout);
 	_pclose(_depth_pipeout);
 
+	// Close Zstandard file
+	//if (_depth_zstd_file) {
+	//	fclose(_depth_zstd_file);
+	//}
+
+	//// Free Zstandard context
+	//if (_depth_zstd_ctx) {
+	//	ZSTD_freeCCtx(_depth_zstd_ctx);
+	//}
+
 }
 
 void Datalogger::close()
@@ -106,6 +129,16 @@ void Datalogger::close()
 	_csv_file.close();
 	fflush(_depth_pipeout);
 	_pclose(_depth_pipeout);
+
+	//// Close Zstandard file
+	//if (_depth_zstd_file) {
+	//	fclose(_depth_zstd_file);
+	//}
+
+	//// Free Zstandard context
+	//if (_depth_zstd_ctx) {
+	//	ZSTD_freeCCtx(_depth_zstd_ctx);
+	//}
 }
 
 
@@ -134,14 +167,53 @@ void Datalogger::writeCSVRow(double& run_seconds, int& depth_frame_num, int& us_
 
 }
 
-void Datalogger::writeDepthFrame(const cv::Mat& frame)
-{
+
+
+void Datalogger::writeDepthFrame(const cv::Mat& frame) {
 	if (frame.type() != CV_16UC1) {
 		throw std::invalid_argument("Depth frames must be of type CV_16UC1.");
 	}
 	if (!_depth_pipeout) {
 		throw std::runtime_error("FFMPEG subprocess for depth is not open.");
 	}
+
+	// Write raw frame to FFmpeg
 	fwrite(frame.data, 1, REALSENSE_WIDTH * REALSENSE_HEIGHT * 2, _depth_pipeout);
-	//std::cout << "Wrote Frame" << std::endl;
+	fflush(_depth_pipeout);
+	
 }
+
+//void Datalogger::writeDepthFrame(const cv::Mat& frame) {
+//	if (frame.type() != CV_16UC1) {
+//		throw std::invalid_argument("Depth frames must be of type CV_16UC1.");
+//	}
+//	if (!_depth_pipeout) {
+//		throw std::runtime_error("FFMPEG subprocess for depth is not open.");
+//	}
+//
+//	// Write raw frame to FFmpeg
+//	fwrite(frame.data, 1, REALSENSE_WIDTH * REALSENSE_HEIGHT * 2, _depth_pipeout);
+//	//fflush(_depth_pipeout); // Ensure data is flushed to FFmpeg
+//
+//	// Read FFmpeg output
+//	char buffer[65536]; // Buffer for FFmpeg output
+//	size_t bytesRead = fread(buffer, 1, sizeof(buffer), _depth_pipein);
+//	if (bytesRead > 0) {
+//		std::cout << "bytesRead: " << bytesRead << std::endl;
+//		// Compress the data with Zstandard
+//		size_t compressedSize = ZSTD_compressCCtx(
+//			_depth_zstd_ctx, _depth_compressed_buffer.data(), _depth_compressed_buffer.size(),
+//			buffer, bytesRead, 1); // Compression level 1
+//
+//		if (ZSTD_isError(compressedSize)) {
+//			throw std::runtime_error("Zstandard compression failed.");
+//		}
+//
+//		// Write compressed data to the Zstandard file
+//		fwrite(_depth_compressed_buffer.data(), 1, compressedSize, _depth_zstd_file);
+//		//fflush(_depth_zstd_file); // Ensure data is written to disk
+//	}
+//	else {
+//		std::cerr << "No Data Read from FFmpeg!" << std::endl;
+//	}
+//}

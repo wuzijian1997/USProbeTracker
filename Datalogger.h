@@ -7,6 +7,7 @@
 #include <fstream>
 #include <sstream>
 #include <vector>
+#include <zstd.h>
 
 
 //For file management
@@ -42,7 +43,18 @@ private:
 	std::ofstream _csv_file;
 	std::string _data_path,_csv_filename;
 	std::string _depth_file, _us_file;
-	FILE* _depth_pipeout,_us_pipeout;
+	FILE* _depth_pipeout;
+	FILE* _us_pipeout;
+
+
+
+
+	//FILE* _depth_pipein;
+	//FILE* _depth_zstd_file;
+	//FILE* _us_zstd_file;
+	//ZSTD_CCtx* _depth_zstd_ctx;
+	//ZSTD_CCtx* _us_zstd_ctx;
+	//std::vector<char> _depth_compressed_buffer;
 	
 
 };
