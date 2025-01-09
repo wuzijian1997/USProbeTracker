@@ -138,8 +138,9 @@ void ShellSensorReader::readLines()
 					//Writes force reading to the queue
 					{
 						std::lock_guard<std::mutex> l{_sensorReadingMutex};
-						if (_forceSenseQueue.size() > 10) {
-							_forceSenseQueue.pop(); // Discard the oldest readings if the queue is too large
+						//Clears the queue before pushing the newest reading (we only have one reading in the queue at a time)
+						while (!_forceSenseQueue.empty()) {
+							_forceSenseQueue.pop();
 						}
 						_forceSenseQueue.push(line);
 					}
@@ -155,10 +156,11 @@ void ShellSensorReader::readLines()
 					//Writes force reading to the queue
 					{
 						std::lock_guard<std::mutex> l{ _sensorReadingMutex };
-						if (_tempImuQueue.size() > 10) {
-							_tempImuQueue.pop(); // Discard the oldest readings if the queue is too large
+						//Clears the queue before pushing the newest reading (we only have one reading in the queue at a time)
+						while (!_tempImuQueue.empty()) {
+							_tempImuQueue.pop();
 						}
-						_tempImuQueue.push(line);
+						_tempImuQueue.push(line);;
 					}
 					//Notifies the recipient
 					_tempImuReadingArrived.notify_one();
@@ -198,7 +200,7 @@ bool ShellSensorReader::checkLineTag(std::string& lineTag,std::string& serialLin
 void ShellSensorReader::getForceString(std::string& force_string)
 {
 	std::unique_lock<std::mutex> lock{ _sensorReadingMutex };
-	//Returns NaNs if waiting longer than 20 ms (50 Hz)
+	//Returns NaNs if waiting longer than _timeout value
 	if (!_ForceSenseReadingArrived.wait_for(lock, std::chrono::milliseconds(_timeout), [this]() { return !_forceSenseQueue.empty(); }))
 	{
 		//We had a timeout event, return with force_string set to 12 NaN's
@@ -223,7 +225,7 @@ void ShellSensorReader::getForceString(std::string& force_string)
 void ShellSensorReader::getTempIMUString(std::string& temp_imu_string)
 {
 	std::unique_lock<std::mutex> lock{ _sensorReadingMutex };
-	//Returns NaNs if waiting longer than 20 ms (50 Hz)
+	//Returns NaNs if waiting longer than _timeout value
 	if (!_tempImuReadingArrived.wait_for(lock, std::chrono::milliseconds(_timeout), [this]() { return !_tempImuQueue.empty(); }))
 	{
 		//We had a timeout event, return with string set to 6 NaN's

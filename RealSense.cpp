@@ -225,9 +225,9 @@ void RealSense::frameProducer()
 
             {
                 std::lock_guard<std::mutex> l{ _realSenseMutex };
-
-                if (_realSenseDataQueue.size() > 10) {
-                    _realSenseDataQueue.pop(); // Discard the oldest readings if the queue is too large
+                //Clears the queue before pushing the newest reading (we only have one reading in the queue at a time)
+                while (!_realSenseDataQueue.empty()) {
+                    _realSenseDataQueue.pop();
                 }
                 _realSenseDataQueue.push(realsense_data);
 

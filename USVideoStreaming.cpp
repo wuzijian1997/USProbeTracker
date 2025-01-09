@@ -154,8 +154,9 @@ void USVideoStreaming::ReadFrames()
 
 		{
 			std::lock_guard<std::mutex> l{ _frameMutex };
-			if (_frameQueue.size() > 10) {
-				_frameQueue.pop(); // Discard the oldest frame if the queue is too large
+			//Clears the queue before pushing the newest reading (we only have one reading in the queue at a time)
+			while (!_frameQueue.empty()) {
+				_frameQueue.pop();
 			}
 			_frameQueue.push(USFrame.clone());
 		}
