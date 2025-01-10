@@ -255,7 +255,6 @@ void PoseTracker::processMarkerDetection(std::shared_ptr<IRSegmentation::IrDetec
             }
         }
     }
-m_hasNewPose
     // Try filling in any missing markers based on the ones we know
     if (success) {
         double err = fillInMissing(detection->points, idxs);

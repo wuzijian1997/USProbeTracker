@@ -24,11 +24,11 @@ auto geom= std::vector<Eigen::Vector3d>{ marker1, marker2, marker3, marker4 };
 std::string data_root_path = "data";
 std::string data_participant_directory = "P0"; //Participant number
 
-bool show_us_stream = false; //Show the us stream 
-bool show_pose = false; //Show the pose on entire image
-bool show_clip_area_andkeypoints = false; //Show the clipped area around the marker, also show keypoints
-bool show_ir = false; //Shows the left ir frame
-bool show_depth = false; //shows the depth map
+bool show_us_stream = true; //Show the us stream 
+bool show_pose = true; //Show the pose on entire image
+bool show_clip_area_andkeypoints = true; //Show the clipped area around the marker, also show keypoints
+bool show_ir = true; //Shows the left ir frame
+bool show_depth = true; //shows the depth map
 
 //Semi-Permanent Setup Parameters
 int realsense_timeout = 35; //Realsense Frame Grabber Returns False if waiting more than 35 ms

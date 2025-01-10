@@ -114,10 +114,10 @@ Datalogger::Datalogger(std::string root_path, std::string participant_directory,
 
 
 void Datalogger::initFfmpegipe(FILE*& pipeout,std::string& file_name,std::string px_fmt) {
-
+	std::cout << "Filename: " << file_name << std::endl;
 	std::string ffmpeg_cmd = "ffmpeg -y -f rawvideo -vcodec rawvideo "
 		"-pixel_format gray16le -video_size " + std::to_string(REALSENSE_WIDTH) + "x" + std::to_string(REALSENSE_HEIGHT) +
-		" -r " + std::to_string(REALSENSE_FPS) + " -i pipe: -vcodec ffv1 -level 3 -coder 2 -slices 4 -pix_fmt "+ px_fmt + file_name; //" + _depth_file;
+		" -r " + std::to_string(REALSENSE_FPS) + " -i pipe: -vcodec ffv1 -level 3 -coder 2 -slices 4 -pix_fmt "+ px_fmt +" "+ file_name; //" + _depth_file;
 
 	pipeout = _popen(ffmpeg_cmd.c_str(), "wb");
 	if (!pipeout)
