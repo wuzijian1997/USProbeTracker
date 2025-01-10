@@ -73,10 +73,10 @@ Datalogger::Datalogger(std::string root_path, std::string participant_directory,
 	_csv_file << "Force Calibration Matrix (final column bias):\n";
 	_csv_file << calib_mat_string;
 	_csv_file << "\n";
-	_csv_file << "Left Camera Intrinsics (fx,fy,cx,cy,k1,k2,p1,p2,k3):\n";
+	_csv_file << "Left Camera Intrinsics (fx-fy-cx-cy-k1-k2-p1-p2-k3):\n";
 	_csv_file << left_camera_intrinsics + "\n";
 	_csv_file << "\n";
-	_csv_file << "Right Camera Intrinsics (fx,fy,cx,cy,k1,k2,p1,p2,k3):\n";
+	_csv_file << "Right Camera Intrinsics (fx-fy-cx-cy-k1-k2-p1-p2-k3):\n";
 	_csv_file << right_camera_intrinsics + "\n";
 	_csv_file << "\n";
 	_csv_file << "RealSense Depth Scale (converts depth pixels to meters):\n";

@@ -24,11 +24,11 @@ auto geom= std::vector<Eigen::Vector3d>{ marker1, marker2, marker3, marker4 };
 std::string data_root_path = "data";
 std::string data_participant_directory = "P0"; //Participant number
 
-bool show_us_stream = true; //Show the us stream 
+bool show_us_stream = false; //Show the us stream 
 bool show_pose = true; //Show the pose on entire image
 bool show_clip_area_andkeypoints = true; //Show the clipped area around the marker, also show keypoints
 bool show_ir = true; //Shows the left ir frame
-bool show_depth = true; //shows the depth map
+bool show_depth = false; //shows the depth map
 
 //Semi-Permanent Setup Parameters
 int realsense_timeout = 35; //Realsense Frame Grabber Returns False if waiting more than 35 ms
@@ -38,11 +38,17 @@ float pose_jumpThresholdMetres = 0.3;
 int pose_numFramesUntilSet = 4;
 float pose_smoothing = 0.0f; //We are not smoothing the pose
 int forcesensor_timeout = 2; //We wait for 2 ms, force grabber returns NaN's if waiting more than this
-int posetracker_timeout = 10; //We wait for 10ms for the pose tracker to update pose
+int posetracker_timeout = 10; //We wait for 2ms for the pose tracker to update pose
 int i;
 int us_timeout = 2; //We wait for 2 ms for us frames
 
 std::chrono::milliseconds pose_tracker_timeout_duration(posetracker_timeout/10);
+
+
+
+std::chrono::steady_clock::time_point last_time;
+std::chrono::steady_clock::time_point curr_time;
+
 
 int main()
 {
@@ -100,15 +106,16 @@ int main()
 		double cy_right = realsense_camera._realSense_intrinsics_rightIR.ppy;
 
 		//String to store the intrinsics
-		std::string left_camera_intrinsics = std::to_string(fx) + std::to_string(fy) + std::to_string(cx) + std::to_string(cy)+
-			std::to_string(realsense_camera._realSense_intrinsics_leftIR.coeffs[0])+ std::to_string(realsense_camera._realSense_intrinsics_leftIR.coeffs[1])+
-				std::to_string(realsense_camera._realSense_intrinsics_leftIR.coeffs[2])+ std::to_string(realsense_camera._realSense_intrinsics_leftIR.coeffs[3])+
+		std::string left_camera_intrinsics = std::to_string(fx) +","+ std::to_string(fy) + "," + std::to_string(cx) + "," + std::to_string(cy) + "," +
+			std::to_string(realsense_camera._realSense_intrinsics_leftIR.coeffs[0])+ "," + std::to_string(realsense_camera._realSense_intrinsics_leftIR.coeffs[1])+ "," +
+				std::to_string(realsense_camera._realSense_intrinsics_leftIR.coeffs[2])+ "," + std::to_string(realsense_camera._realSense_intrinsics_leftIR.coeffs[3])+ "," +
 					std::to_string(realsense_camera._realSense_intrinsics_leftIR.coeffs[4]);
 
-		std::string right_camera_intrinsics = std::to_string(fx_right) + std::to_string(fy_right) + std::to_string(cx_right) + std::to_string(cy_right) +
-			std::to_string(realsense_camera._realSense_intrinsics_rightIR.coeffs[0]) + std::to_string(realsense_camera._realSense_intrinsics_rightIR.coeffs[1]) +
-				std::to_string(realsense_camera._realSense_intrinsics_rightIR.coeffs[2]) + std::to_string(realsense_camera._realSense_intrinsics_rightIR.coeffs[3]) +
+		std::string right_camera_intrinsics = std::to_string(fx_right) + "," + std::to_string(fy_right) + "," + std::to_string(cx_right) + "," + std::to_string(cy_right) + "," +
+			std::to_string(realsense_camera._realSense_intrinsics_rightIR.coeffs[0]) + "," + std::to_string(realsense_camera._realSense_intrinsics_rightIR.coeffs[1]) + "," +
+				std::to_string(realsense_camera._realSense_intrinsics_rightIR.coeffs[2]) + "," + std::to_string(realsense_camera._realSense_intrinsics_rightIR.coeffs[3]) + "," +
 					std::to_string(realsense_camera._realSense_intrinsics_rightIR.coeffs[4]);
+
 		//*********************Start the pose calculator************************
 		PoseTracker poseTracker(ir_segmenter, geom, pose_markerDiameter); //Starts the pose tracker thread
 		poseTracker.setJumpSettings(pose_filterJumps, pose_jumpThresholdMetres, pose_numFramesUntilSet);
@@ -170,12 +177,19 @@ int main()
 		while (true)
 		{			
 			//*****************Get RealSense Data******************
+			last_time = std::chrono::steady_clock::now();
+			
 			is_realsense_data_returned =realsense_camera.getRealSenseData(realsense_data);
+
+			curr_time = std::chrono::steady_clock::now();
+			auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_time - last_time).count();
 			
 			//!!!Data Collection Syncrhonized to RealSense!!!
 			if (is_realsense_data_returned) //Enters if depth/ir frames arrive
 			{
 				//***********************RealSense Data Conversions******************
+				last_time = std::chrono::steady_clock::now();
+				
 				//Converts left IR to vector representation (for pose tracker)
 				auto ir_data = reinterpret_cast<const uint8_t*>(realsense_data.irLeftFrame.get_data());
 				std::vector<uint8_t> ir_vector(ir_data, ir_data + (REALSENSE_HEIGHT * REALSENSE_WIDTH));
@@ -185,24 +199,33 @@ int main()
 				auto depth_data = reinterpret_cast<const uint16_t*>(realsense_data.depthFrameFiltered.get_data());
 				std::vector<uint16_t> depth_vector(depth_data, depth_data + (REALSENSE_HEIGHT * REALSENSE_WIDTH));
 				auto depth_ptr = std::make_unique<std::vector<uint16_t>>(std::move(depth_vector));
-				//std::cout << "Converted Frames" << std::endl;
-
 				//Converts IR to OpenCV representation for display
 				if (show_ir || show_clip_area_andkeypoints || show_pose)
 				{
 					ir_mat_left = cv::Mat(cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT), CV_8UC1, (void*)realsense_data.irLeftFrame.get_data());
 				}
 				//ir_mat_right = cv::Mat(cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT), CV_8UC1, (void*)realsense_data.irRightFrame.get_data());
-
+				
+				
+				curr_time = std::chrono::steady_clock::now();
+				auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_time - last_time).count();
 
 				//***********************Get Pose***********************
 				//Update the pose tracker with new realsense frames
+				last_time = std::chrono::steady_clock::now();
 				poseTracker.update(std::move(ir_ptr), std::move(depth_ptr));
+				curr_time = std::chrono::steady_clock::now();
+				elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_time - last_time).count();
+				std::cout << "Update Pose dt:" << elapsed_ms << std::endl;
 
 				for (i = 0; i < 10; i++) {
 					if (poseTracker.hasNewPose()) break; //Breaks if new pose is calculated
-					std::this_thread::sleep_for(pose_tracker_timeout_duration); //Sleeps main to wait for new pose
+					using namespace std::chrono_literals;
+					std::this_thread::sleep_for(10ms); //Sleeps main to wait for new pose
 				}
+				curr_time = std::chrono::steady_clock::now();
+				elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_time - last_time).count();
+				std::cout << "Has Pose dt:" << elapsed_ms << std::endl;
 
 				//Check if pose is computed
 				if (i == 10) {
@@ -213,12 +236,15 @@ int main()
 						-1, -1, -1, -1;
 				}
 				else {
-					//Computers Pose
+					//Computes Pose
 					cam_T_us = poseTracker.getPose();
 				}
-
+				curr_time = std::chrono::steady_clock::now();
+				elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_time - last_time).count();
+				std::cout << "Pose dt:" << elapsed_ms << std::endl;
 
 				//************************Get Force/IMU************************
+				last_time = std::chrono::steady_clock::now();
 				shellReader.getForceString(raw_force_string); //Gets most recent force string
 				shellReader.getTempIMUString(temp_imu_string); //Gets most recent Temperature + IMU String
 
@@ -226,15 +252,26 @@ int main()
 				force_string_xyz = calculateForceVals(raw_force_string, force_calibration_mat, force_zeroing_offset);
 				//std::cout << "Raw Force Reading: " << raw_force_string << ", XYZ Force Reading: " << force_string_xyz << std::endl;
 
+				curr_time = std::chrono::steady_clock::now();
+				elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_time - last_time).count();
+
 				//************************Get US Frame*************************
+				last_time = std::chrono::steady_clock::now();
 				cv::Mat usFrame = USStreamer.getFrame(); //Gets most recent us frame
 				if (!usFrame.empty()) //If the ultraasound frame is not empty, we write the US frame and increment us counter
 				{
 					us_frame_count++;
-					datalogger.writeUSFrame(usFrame);
+					//datalogger.writeUSFrame(usFrame);
+					if (show_us_stream)
+					{
+						USStreamer.showFrame();
+					}
 				}
+				curr_time = std::chrono::steady_clock::now();
+				elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_time - last_time).count();
 
 				//************************Logging Data*************************
+				last_time = std::chrono::steady_clock::now();
 				//get the time since running
 				auto current_time = std::chrono::high_resolution_clock::now();
 				elapsed_time = current_time - start_time;
@@ -244,12 +281,12 @@ int main()
 
 				//Writes pose/force to scandata_datetime.csv
 				datalogger.writeCSVRow(elapsed_seconds, realsense_frame_count, us_frame_count, cam_T_us, raw_force_string, force_string_xyz, temp_imu_string);
-
 				//Writes the depth frame to depthframe_datetime.mp4
 				cv::Mat depth_mat(cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT), CV_16UC1, (void*)realsense_data.depthFrame.get_data(), cv::Mat::AUTO_STEP);
-				datalogger.writeDepthFrame(depth_mat);
+				//datalogger.writeDepthFrame(depth_mat);
 
-
+				curr_time = std::chrono::steady_clock::now();
+				elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_time - last_time).count();
 
 				//************************Displaying Frames********************
 				if (show_pose) //Shows the pose
