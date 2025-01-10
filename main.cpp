@@ -24,6 +24,12 @@ auto geom= std::vector<Eigen::Vector3d>{ marker1, marker2, marker3, marker4 };
 std::string data_root_path = "data";
 std::string data_participant_directory = "P0"; //Participant number
 
+bool show_us_stream = false; //Show the us stream 
+bool show_pose = false; //Show the pose on entire image
+bool show_clip_area_andkeypoints = false; //Show the clipped area around the marker, also show keypoints
+bool show_ir = false; //Shows the left ir frame
+bool show_depth = false; //shows the depth map
+
 //Semi-Permanent Setup Parameters
 int realsense_timeout = 35; //Realsense Frame Grabber Returns False if waiting more than 35 ms
 float pose_markerDiameter = 0.011; //IR Marker diameter in meters
@@ -34,6 +40,9 @@ float pose_smoothing = 0.0f; //We are not smoothing the pose
 int forcesensor_timeout = 2; //We wait for 2 ms, force grabber returns NaN's if waiting more than this
 int posetracker_timeout = 10; //We wait for 10ms for the pose tracker to update pose
 int i;
+int us_timeout = 2; //We wait for 2 ms for us frames
+
+std::chrono::milliseconds pose_tracker_timeout_duration(posetracker_timeout/10);
 
 int main()
 {
@@ -50,10 +59,16 @@ int main()
 
 	//OpenCV Matrices of right/left IR
 	cv::Mat ir_mat_left, ir_mat_right;
+	//Vars for displaying
+	cv::Mat depth_normalized;
+	double minVal, maxVal;
+	cv::Mat depth_colormap;
+
 	//Boolean for if realsense data is returned
 	bool is_realsense_data_returned = false;
 	//object to hold realsense data
 	RealSense::RealSenseData realsense_data; 
+	Eigen::Matrix4d cam_T_us; //The pose that we are tracking
 	
 	//Enters if camera is configured correctly
 	if (realsense_check)
@@ -61,7 +76,7 @@ int main()
 		std::cout << "RealSense Camera Properly Setup" << std::endl;
 		//***************Init IR Segmentation Parameters***********************
 		//Creates IR segmentation object, constants are in RealSense.h
-		auto ir_segmenter = std::make_shared<IRSegmentation>(REALSENSE_WIDTH, REALSENSE_HEIGHT, realsense_camera._depth_scale,IRSegmentation::LogLevel::Silent);
+		auto ir_segmenter = std::make_shared<IRSegmentation>(REALSENSE_WIDTH, REALSENSE_HEIGHT, realsense_camera._depth_scale,IRSegmentation::LogLevel::Silent,show_clip_area_andkeypoints);
 		ir_segmenter->setDetectionMode(IRSegmentation::DetectionMode::Contour); //Sets the segmentation method
 		ir_segmenter->setCameraBoundaries(0,REALSENSE_HEIGHT-1,0,REALSENSE_WIDTH-1,NEAR_CLIP,FAR_CLIP); //Sets the camera boundaries
 		
@@ -78,6 +93,22 @@ int main()
 
 			});
 
+		//Gets the RealSense intrinsics for the right IRfor storage (other IR)
+		double fx_right = realsense_camera._realSense_intrinsics_rightIR.fx;
+		double fy_right = realsense_camera._realSense_intrinsics_rightIR.fy;
+		double cx_right = realsense_camera._realSense_intrinsics_rightIR.ppx;
+		double cy_right = realsense_camera._realSense_intrinsics_rightIR.ppy;
+
+		//String to store the intrinsics
+		std::string left_camera_intrinsics = std::to_string(fx) + std::to_string(fy) + std::to_string(cx) + std::to_string(cy)+
+			std::to_string(realsense_camera._realSense_intrinsics_leftIR.coeffs[0])+ std::to_string(realsense_camera._realSense_intrinsics_leftIR.coeffs[1])+
+				std::to_string(realsense_camera._realSense_intrinsics_leftIR.coeffs[2])+ std::to_string(realsense_camera._realSense_intrinsics_leftIR.coeffs[3])+
+					std::to_string(realsense_camera._realSense_intrinsics_leftIR.coeffs[4]);
+
+		std::string right_camera_intrinsics = std::to_string(fx_right) + std::to_string(fy_right) + std::to_string(cx_right) + std::to_string(cy_right) +
+			std::to_string(realsense_camera._realSense_intrinsics_rightIR.coeffs[0]) + std::to_string(realsense_camera._realSense_intrinsics_rightIR.coeffs[1]) +
+				std::to_string(realsense_camera._realSense_intrinsics_rightIR.coeffs[2]) + std::to_string(realsense_camera._realSense_intrinsics_rightIR.coeffs[3]) +
+					std::to_string(realsense_camera._realSense_intrinsics_rightIR.coeffs[4]);
 		//*********************Start the pose calculator************************
 		PoseTracker poseTracker(ir_segmenter, geom, pose_markerDiameter); //Starts the pose tracker thread
 		poseTracker.setJumpSettings(pose_filterJumps, pose_jumpThresholdMetres, pose_numFramesUntilSet);
@@ -97,11 +128,13 @@ int main()
 		Eigen::Vector3d force_zeroing_offset(0.0, 0.0, 0.0); //Zeroing is set to zeros for now		
 		std::string raw_force_string, temp_imu_string, force_string_xyz; //String that we read force readings into
 
+		//***********************Init the US Frame Grabber*********************
+		USVideoStreaming USStreamer(show_us_stream, us_timeout); //Shows US stream when true, timeout for frabbing from the us thread
 
 		//**********************Init Datalogger***********************
 		//Initializes the datalogger object, first string is root directory second string is subdirectory
 		//defaults it to data/PXX where XX is the most recent participant number
-		Datalogger datalogger(data_root_path, data_participant_directory, force_calibration_mat, force_zeroing_offset);
+		Datalogger datalogger(data_root_path, data_participant_directory, force_calibration_mat, force_zeroing_offset,left_camera_intrinsics,right_camera_intrinsics,realsense_camera._depth_scale);
 
 
 		//********************Init variables to display pose***********
@@ -123,13 +156,20 @@ int main()
 
 
 		//********************Init Frame Counter Vars**********************
-		int realsense_frame_count = 0;
-		int us_frame_count = 0;
+		int realsense_frame_count = -1; //-1 Denotes frames haven't started
+		int us_frame_count = -1; //-1 Denotes frames haven't started
 
 		//Start the realsense thread
 		realsense_camera.start();
+
+		//Init the clock counting recording time
+		auto current_time = std::chrono::high_resolution_clock::now();
+		auto start_time = std::chrono::high_resolution_clock::now();
+		std::chrono::duration<float> elapsed_time;
+		float elapsed_seconds;
 		while (true)
 		{			
+			//*****************Get RealSense Data******************
 			is_realsense_data_returned =realsense_camera.getRealSenseData(realsense_data);
 			
 			//!!!Data Collection Syncrhonized to RealSense!!!
@@ -147,129 +187,147 @@ int main()
 				auto depth_ptr = std::make_unique<std::vector<uint16_t>>(std::move(depth_vector));
 				//std::cout << "Converted Frames" << std::endl;
 
-				//Converts IR to OpenCV representation
-				//ir_mat_left = cv::Mat(cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT), CV_8UC1, (void*)realsense_data.irLeftFrame.get_data());
+				//Converts IR to OpenCV representation for display
+				if (show_ir || show_clip_area_andkeypoints || show_pose)
+				{
+					ir_mat_left = cv::Mat(cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT), CV_8UC1, (void*)realsense_data.irLeftFrame.get_data());
+				}
 				//ir_mat_right = cv::Mat(cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT), CV_8UC1, (void*)realsense_data.irRightFrame.get_data());
 
 
-				//***********************Compute the Pose***********************
+				//***********************Get Pose***********************
 				//Update the pose tracker with new realsense frames
 				poseTracker.update(std::move(ir_ptr), std::move(depth_ptr));
 
 				for (i = 0; i < 10; i++) {
 					if (poseTracker.hasNewPose()) break; //Breaks if new pose is calculated
-					using namespace std::chrono_literals;
-					std::this_thread::sleep_for(); //Sleeps main to wait for new pose
+					std::this_thread::sleep_for(pose_tracker_timeout_duration); //Sleeps main to wait for new pose
 				}
 
+				//Check if pose is computed
 				if (i == 10) {
-					//Failed to compute pose, make the matrix all "-1's" to indicate it is false
-					std::cout << "Failed to compute pose" << std::endl;
+					//Failed to compute pose, make the matrix all "-1's" to indicate it is false			
+					cam_T_us << -1, -1, -1, -1,
+						-1, -1, -1, -1,
+						-1, -1, -1, -1,
+						-1, -1, -1, -1;
 				}
 				else {
-					Eigen::Matrix4d T = poseTracker.getPose();
+					//Computers Pose
+					cam_T_us = poseTracker.getPose();
 				}
 
 
-
-
-
-
-				//	cv::Mat cvT(4, 4, CV_64F);
-				//	for (int i = 0; i < 4; ++i) {
-				//		for (int j = 0; j < 4; ++j) {
-				//			cvT.at<double>(i, j) = T(i, j);
-				//		}
-				//	}
-
-				//	//Displaying image
-				//	//rotation = cvT(cv::Range(0, 3), cv::Range(0, 3));
-				//	//translation = cvT(cv::Range(0, 3), cv::Range(3, 4));
-				//	//cv::Mat outputImage;
-				//	//cv::cvtColor(ir_mat_left, outputImage, cv::COLOR_GRAY2BGR);
-				//	//cv::Rodrigues(rotation, rvec);
-				//	//cv::drawFrameAxes(outputImage, cameraMatrix, distCoeffs, rvec, translation, 0.1, 3);
-				//	//cv::imshow("Pose Visualization", outputImage);
-				//	//
-				//	//for (const auto& coord : poseTracker.m_objectPose.imageCoords) {
-				//	//		// draw the point on the image (circle with radius 3, red color)
-				//	//		cv::circle(ir_mat_left, cv::Point(coord[0], coord[1]), 3, cv::Scalar(0, 0, 255), -1);
-				//	//}
-
-
-
-				//	
-				//}
-
-
-				//***************Force Readings***************
+				//************************Get Force/IMU************************
 				shellReader.getForceString(raw_force_string); //Gets most recent force string
 				shellReader.getTempIMUString(temp_imu_string); //Gets most recent Temperature + IMU String
 
-
 				//Converts raw force values (binary) to estimated force values, if raw forces are NaN's then NaN's are returned
-				force_string_xyz=calculateForceVals(raw_force_string, force_calibration_mat, force_zeroing_offset);
+				force_string_xyz = calculateForceVals(raw_force_string, force_calibration_mat, force_zeroing_offset);
 				//std::cout << "Raw Force Reading: " << raw_force_string << ", XYZ Force Reading: " << force_string_xyz << std::endl;
 
+				//************************Get US Frame*************************
+				cv::Mat usFrame = USStreamer.getFrame(); //Gets most recent us frame
+				if (!usFrame.empty()) //If the ultraasound frame is not empty, we write the US frame and increment us counter
+				{
+					us_frame_count++;
+					datalogger.writeUSFrame(usFrame);
+				}
 
-				//***************Logging Data******************
-				Eigen::Matrix4d dummyPose;
-				dummyPose << 1, 0, 0, 5,
-							0, 1, 0, 10,
-							0, 0, 1, 15,
-							0, 0, 0, 1;
-				double dummy_seconds = 1.0f;
-				int dummy_frame_num = 1;
+				//************************Logging Data*************************
+				//get the time since running
+				auto current_time = std::chrono::high_resolution_clock::now();
+				elapsed_time = current_time - start_time;
+				elapsed_seconds = elapsed_time.count();
 
-
-				datalogger.writeCSVRow(dummy_seconds, realsense_frame_count, dummy_frame_num, dummyPose, raw_force_string, force_string_xyz, temp_imu_string);
-				
-				//Writes the depth frame to the depth video
-				cv::Mat depth_mat(cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT), CV_16UC1, (void*)realsense_data.depthFrame.get_data(), cv::Mat::AUTO_STEP);
-
-				datalogger.writeDepthFrame(depth_mat);
 				realsense_frame_count++; //Increments the depth frame counter
 
+				//Writes pose/force to scandata_datetime.csv
+				datalogger.writeCSVRow(elapsed_seconds, realsense_frame_count, us_frame_count, cam_T_us, raw_force_string, force_string_xyz, temp_imu_string);
+
+				//Writes the depth frame to depthframe_datetime.mp4
+				cv::Mat depth_mat(cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT), CV_16UC1, (void*)realsense_data.depthFrame.get_data(), cv::Mat::AUTO_STEP);
+				datalogger.writeDepthFrame(depth_mat);
 
 
-				//For Display
-				//cv::imshow("ir mat left", ir_mat_left);
-				//char c = cv::waitKey(1);	//grabs key press, if q we close
-				//if (c == 'q')
-				//{
-				//	break;
 
-				//}
+				//************************Displaying Frames********************
+				if (show_pose) //Shows the pose
+				{
+						cv::Mat cvT(4, 4, CV_64F);
+						for (int i = 0; i < 4; ++i) {
+							for (int j = 0; j < 4; ++j) {
+								cvT.at<double>(i, j) = cam_T_us(i, j);
+							}
+						}
 
-				
+						//Displaying image
+						rotation = cvT(cv::Range(0, 3), cv::Range(0, 3));
+						translation = cvT(cv::Range(0, 3), cv::Range(3, 4));
+						cv::Mat outputImage;
+						cv::cvtColor(ir_mat_left, outputImage, cv::COLOR_GRAY2BGR);
+						cv::Rodrigues(rotation, rvec);
+						cv::drawFrameAxes(outputImage, cameraMatrix, distCoeffs, rvec, translation, 0.1, 3);
+						cv::imshow("Pose Visualization", outputImage);
+						if (!(show_ir || show_clip_area_andkeypoints))
+						{
+							char c = cv::waitKey(1);	//grabs key press, if q we close
+							if (c == 'q')
+							{
+								break;
+
+							}
+
+						}
+				}
+
+				if (show_clip_area_andkeypoints) //Shows the keypoints
+				{
+					for (const auto& coord : poseTracker.m_objectPose.imageCoords) {
+							// draw the point on the image (circle with radius 3, red color)
+							cv::circle(ir_mat_left, cv::Point(coord[0], coord[1]), 3, cv::Scalar(0, 0, 255), -1);
+					}
+				}
+				if (show_ir || show_clip_area_andkeypoints) //Shows the ir image
+				{
+
+					cv::imshow("IR Left", ir_mat_left);
+					char c = cv::waitKey(1);	//grabs key press, if q we close
+					if (c == 'q')
+					{
+						break;
+
+					}
+				}
+
+				if (show_depth) //Shows the depth frame from the realsense
+				{					
+					cv::minMaxIdx(depth_mat, &minVal, &maxVal); //Finds the min and max values 
+					depth_mat.convertTo(depth_normalized, CV_8UC1, 255.0 / maxVal); //Normalizes from 0-255					
+					cv::applyColorMap(depth_normalized, depth_colormap, cv::COLORMAP_JET); //Applies the colour map
+
+					// Display the heatmap
+					cv::imshow("Depth Heatmap", depth_colormap);
+
+					if (!(show_ir || show_clip_area_andkeypoints||show_pose))
+					{
+						char c = cv::waitKey(1);	//grabs key press, if q we close
+						if (c == 'q')
+						{
+							break;
+
+						}
+
+					}
 
 
-				//std::cout << "Converted mat" << std::endl;
-				//auto detection = ir_segmenter->findKeypointsWorldFrame(std::move(ir_ptr), std::move(depth_ptr));
-				//std::cout << "Got Keypoints" << std::endl;
-				////std::cout << "Success" << std::endl;
-				//for (const auto& coord : detection->imCoords) {
-				//	 //draw the point on the image (circle with radius 3, red color)
-				//	cv::circle(ir_mat_left, cv::Point(coord[0], coord[1]), 3, cv::Scalar(0, 0, 255), -1);
-				//}
-
-				//cv::imshow("left ir", ir_mat_left);
-				////cv::imshow("right ir", ir_mat_right);
-				//char c = cv::waitKey(1);	//grabs key press, if q we close
-				//if (c == 'q')
-				//{
-				//	break;
-
-				//}
+				}
 
 			}
-
 		}
-		realsense_camera.stop();
+		realsense_camera.stop();	
+		
 	}
-	
-
-
 
 	return 0;
 }
@@ -277,7 +335,7 @@ int main()
 
 
 
-//*********************************Commented Code*********************************
+//*********************************Rough Commented Code*********************************
 //*****************Init Vars****************
 //rs2::frameset frameset, aligned_framset; //Holds RealSense Frame Data
 //rs2::frame ir_frame_left, ir_frame_right;

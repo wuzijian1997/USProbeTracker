@@ -79,7 +79,7 @@ public:
 	/// Create an IrTracker object.
 	/// @param width the width of the input image in pixels
 	/// @param height the height of the input image in pixels
-	IRSegmentation(const int width, const int height, double depth_scale,   LogLevel logLevel = LogLevel::Silent);
+	IRSegmentation(const int width, const int height, double depth_scale,   LogLevel logLevel,bool show_clip_area);
 	//~IRSegmentation();
 
 	/// Set the rectangular region of const interest in the image in which to search for the markers.
@@ -131,6 +131,7 @@ private:
 	int m_depthCamRoiRightCol = REALSENSE_WIDTH - 1;
 	double m_depthNearClip = NEAR_CLIP;
 	double m_depthFarClip = FAR_CLIP;
+	bool m_show_clip_area;
 
 	// Region of Interest for search
 	int m_xMaxCrop = IMAGE_X_MAXCROP - 1;

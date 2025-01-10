@@ -2,11 +2,12 @@
 
 //Inits the IR tracker:
 
-IRSegmentation::IRSegmentation(int width, int height, double depth_scale, LogLevel logLevel)
+IRSegmentation::IRSegmentation(int width, int height, double depth_scale, LogLevel logLevel,bool show_clip_area)
     : m_imWidth(width)
     , m_imHeight(height)
     , m_logLevel(logLevel),
-    m_depth_scale(depth_scale)
+    m_depth_scale(depth_scale),
+    m_show_clip_area(show_clip_area)
 {
     m_xMaxCrop = width - 1;
     m_yMaxCrop = height - 1;
@@ -137,10 +138,13 @@ std::shared_ptr<IRSegmentation::IrDetection> IRSegmentation::findKeypointsWorldF
     if (success)
     {
         //For display
-        /*cv::Mat outputImage;
-        cv::drawKeypoints(im8b,keypoints,outputImage, cv::Scalar(0, 255, 0), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
-        cv::imshow("Contours on Cropped", outputImage);
-        cv::waitKey(1);*/
+        if (m_show_clip_area)
+        {
+            cv::Mat outputImage;
+            cv::drawKeypoints(im8b, keypoints, outputImage, cv::Scalar(0, 255, 0), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
+            cv::imshow("Contours on Cropped", outputImage);
+            cv::waitKey(1);
+        }
 
         //Save the 3D Points
         for (size_t i = 0; i < keypoints.size(); i++)

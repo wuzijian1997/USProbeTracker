@@ -25,17 +25,19 @@ class Datalogger
 public:
 	//Inits the path, csv filename (scanning_datetime.csv), and csv header
 	Datalogger(std::string root_path, std::string participant_directory,
-		Eigen::MatrixXd& calib_mat, Eigen::Vector3d& zeroing_offset);
+		Eigen::MatrixXd& calib_mat, Eigen::Vector3d& zeroing_offset,std::string& left_camera_intrinsics, std::string& right_camera_intrinsics,double& depth_scale);
 	~Datalogger();
 
 	void close();
 
 	//Writes the data to the scan_datetime.csv
-	void writeCSVRow(double &run_seconds,int &depth_frame_num,int &us_frame_num, 
+	void writeCSVRow(float &run_seconds,int &depth_frame_num,int &us_frame_num, 
 		Eigen::Matrix4d& cam_T_us, std::string& raw_force_string,
 		std::string& force_string_xyz, std::string& temp_imu_string);
 
 	void writeDepthFrame(const cv::Mat& frame);
+	void writeUSFrame(const cv::Mat& frame);
+
 	
 
 private:
@@ -45,6 +47,8 @@ private:
 	std::string _depth_file, _us_file;
 	FILE* _depth_pipeout;
 	FILE* _us_pipeout;
+
+	void initFfmpegipe(FILE*& pipeout, std::string& file_name, std::string px_fmt);
 
 
 
