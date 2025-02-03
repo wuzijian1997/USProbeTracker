@@ -59,9 +59,38 @@ bool RealSense::RealSenseInit(int width, int height, int fps, float enable_laser
 
 
 
-    //Setting Laser Power
+    //Sets the gain of the IR images (sensors)
 
-    rs2::device selected_device = pipeline_profile.get_device();
+    rs2::device selected_device = pipeline_profile.get_device();    
+    auto sensors = selected_device.query_sensors();
+
+
+    for (auto& sensor : sensors)
+    {
+        // Disable auto exposure
+        if (sensor.supports(RS2_OPTION_ENABLE_AUTO_EXPOSURE))
+        {
+            sensor.set_option(RS2_OPTION_ENABLE_AUTO_EXPOSURE, 0.0f); // Turn OFF auto exposure
+            std::cout << "Auto exposure disabled for sensor: " << sensor.get_info(RS2_CAMERA_INFO_NAME) << std::endl;
+        }
+
+        // Set manual exposure
+        if (sensor.supports(RS2_OPTION_EXPOSURE))
+        {
+            sensor.set_option(RS2_OPTION_EXPOSURE, 3000.0f); // Set exposure to 3000
+            std::cout << "Exposure set to 3000 for sensor: " << sensor.get_info(RS2_CAMERA_INFO_NAME) << std::endl;
+        }
+
+        // Set gain
+        if (sensor.supports(RS2_OPTION_GAIN) && sensor.get_info(RS2_CAMERA_INFO_NAME) == std::string("Stereo Module"))
+        {
+            sensor.set_option(RS2_OPTION_GAIN, static_cast<float>(gain)); // Set gain to 16
+            std::cout << "Gain set to 16 for sensor: " << sensor.get_info(RS2_CAMERA_INFO_NAME) << std::endl;
+        }
+    }
+
+
+    //Setting Laser Power
     auto depth_sensor = selected_device.first<rs2::depth_sensor>();
 
     if (depth_sensor.supports(RS2_OPTION_EMITTER_ENABLED))
@@ -74,34 +103,6 @@ bool RealSense::RealSenseInit(int width, int height, int fps, float enable_laser
         //auto range = depth_sensor.get_option_range(RS2_OPTION_LASER_POWER);
         depth_sensor.set_option(RS2_OPTION_LASER_POWER, laser_power); // Set  power
     }
-
-    //Sets the gain of the IR images (sensors)
-    auto sensors = selected_device.query_sensors();
-
-    //Loops and checks if the sensor is the stereo module and if it supports gain
-    for (auto& sensor : sensors)
-    {
-        if (sensor.supports(RS2_OPTION_GAIN) && sensor.get_info(RS2_CAMERA_INFO_NAME) == std::string("Stereo Module"))
-        {
-            sensor.set_option(RS2_OPTION_GAIN, static_cast<float>(gain));
-            std::cout << "Set Camera Gain" << std::endl;
-        }
-    }
-
-    //Enables auto exposure
-    for (auto& sensor : sensors) {
-        // Check if the sensor supports auto exposure
-        if (sensor.supports(RS2_OPTION_ENABLE_AUTO_EXPOSURE)) {
-            // Enable auto exposure
-            sensor.set_option(RS2_OPTION_ENABLE_AUTO_EXPOSURE, 0.0f); //Set to 1.0f for autoexposure, but I think it goofs stuff more
-            std::cout << "Auto exposure enabled for sensor: "
-                << sensor.get_info(RS2_CAMERA_INFO_NAME) << std::endl;
-        }
-    }
-
-
-
-
 
 
     //Aligns to left infrared stream

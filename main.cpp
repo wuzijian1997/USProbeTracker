@@ -117,31 +117,31 @@ int main()
 					std::to_string(realsense_camera._realSense_intrinsics_rightIR.coeffs[4]);
 
 		//*********************Start the pose calculator************************
-		PoseTracker poseTracker(ir_segmenter, geom, pose_markerDiameter); //Starts the pose tracker thread
-		poseTracker.setJumpSettings(pose_filterJumps, pose_jumpThresholdMetres, pose_numFramesUntilSet);
-		poseTracker.setSmoothing(pose_smoothing);
+		//PoseTracker poseTracker(ir_segmenter, geom, pose_markerDiameter); //Starts the pose tracker thread
+		//poseTracker.setJumpSettings(pose_filterJumps, pose_jumpThresholdMetres, pose_numFramesUntilSet);
+		//poseTracker.setSmoothing(pose_smoothing);
 
 		//************************Init the Force Sensor************************
-		ShellSensorReader shellReader(SHELLSENSOR_PORTNAME, SHELLSENSOR_BAUDRATE, forcesensor_timeout); //Sets the baud rate, timeout is wait time thread before returning NaN's
-		//Initializes the force sensor, and checks if the port is connected
-		//Starts the force sensor thread
-		if (!shellReader.initialize())
-		{
-			std::cout << "Failed to Initialize Force Sensor Serial Stream" << std::endl;
-			return 0;
-		}
-		
-		Eigen::MatrixXd force_calibration_mat = readCSVToEigenMatrix("Resources/calmat.csv", 3, 13); //Read in force calibration matrix		
-		Eigen::Vector3d force_zeroing_offset(0.0, 0.0, 0.0); //Zeroing is set to zeros for now		
-		std::string raw_force_string, temp_imu_string, force_string_xyz; //String that we read force readings into
+		//ShellSensorReader shellReader(SHELLSENSOR_PORTNAME, SHELLSENSOR_BAUDRATE, forcesensor_timeout); //Sets the baud rate, timeout is wait time thread before returning NaN's
+		////Initializes the force sensor, and checks if the port is connected
+		////Starts the force sensor thread
+		//if (!shellReader.initialize())
+		//{
+		//	std::cout << "Failed to Initialize Force Sensor Serial Stream" << std::endl;
+		//	return 0;
+		//}
+		//
+		//Eigen::MatrixXd force_calibration_mat = readCSVToEigenMatrix("Resources/calmat.csv", 3, 13); //Read in force calibration matrix		
+		//Eigen::Vector3d force_zeroing_offset(0.0, 0.0, 0.0); //Zeroing is set to zeros for now		
+		//std::string raw_force_string, temp_imu_string, force_string_xyz; //String that we read force readings into
 
 		//***********************Init the US Frame Grabber*********************
-		USVideoStreaming USStreamer(show_us_stream, us_timeout); //Shows US stream when true, timeout for frabbing from the us thread
+		//USVideoStreaming USStreamer(show_us_stream, us_timeout); //Shows US stream when true, timeout for frabbing from the us thread
 
 		//**********************Init Datalogger***********************
 		//Initializes the datalogger object, first string is root directory second string is subdirectory
 		//defaults it to data/PXX where XX is the most recent participant number
-		Datalogger datalogger(data_root_path, data_participant_directory, force_calibration_mat, force_zeroing_offset,left_camera_intrinsics,right_camera_intrinsics,realsense_camera._depth_scale);
+		//Datalogger datalogger(data_root_path, data_participant_directory, force_calibration_mat, force_zeroing_offset,left_camera_intrinsics,right_camera_intrinsics,realsense_camera._depth_scale);
 
 
 		//********************Init variables to display pose***********
@@ -188,7 +188,7 @@ int main()
 			if (is_realsense_data_returned) //Enters if depth/ir frames arrive
 			{
 				//***********************RealSense Data Conversions******************
-				last_time = std::chrono::steady_clock::now();
+				//last_time = std::chrono::steady_clock::now();
 				
 				//Converts left IR to vector representation (for pose tracker)
 				auto ir_data = reinterpret_cast<const uint8_t*>(realsense_data.irLeftFrame.get_data());
@@ -200,165 +200,183 @@ int main()
 				std::vector<uint16_t> depth_vector(depth_data, depth_data + (REALSENSE_HEIGHT * REALSENSE_WIDTH));
 				auto depth_ptr = std::make_unique<std::vector<uint16_t>>(std::move(depth_vector));
 				//Converts IR to OpenCV representation for display
-				if (show_ir || show_clip_area_andkeypoints || show_pose)
-				{
-					ir_mat_left = cv::Mat(cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT), CV_8UC1, (void*)realsense_data.irLeftFrame.get_data());
+				//if (show_ir || show_clip_area_andkeypoints || show_pose)
+				//{
+				//	ir_mat_left = cv::Mat(cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT), CV_8UC1, (void*)realsense_data.irLeftFrame.get_data());
+				//}
+				ir_mat_left = cv::Mat(cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT), CV_8UC1, (void*)realsense_data.irLeftFrame.get_data());
+				auto detection = ir_segmenter->findKeypointsWorldFrame(std::move(ir_ptr), std::move(depth_ptr));
+
+				////std::cout << "Success" << std::endl;
+				for (const auto& coord : detection->imCoords) {
+					// draw the point on the image (circle with radius 3, red color)
+					cv::circle(ir_mat_left, cv::Point(coord[0], coord[1]), 3, cv::Scalar(0, 0, 255), -1);
 				}
+
+				cv::imshow("left ir", ir_mat_left);
+				char c = cv::waitKey(1);	//grabs key press, if q we close
+				if (c == 'q')
+				{
+					break;
+
+				}
+
+
 				//ir_mat_right = cv::Mat(cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT), CV_8UC1, (void*)realsense_data.irRightFrame.get_data());
 				
 				
-				curr_time = std::chrono::steady_clock::now();
-				auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_time - last_time).count();
+				//curr_time = std::chrono::steady_clock::now();
+				//auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_time - last_time).count();
 
 				//***********************Get Pose***********************
 				//Update the pose tracker with new realsense frames
-				last_time = std::chrono::steady_clock::now();
-				poseTracker.update(std::move(ir_ptr), std::move(depth_ptr));
-				curr_time = std::chrono::steady_clock::now();
-				elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_time - last_time).count();
-				std::cout << "Update Pose dt:" << elapsed_ms << std::endl;
+				//last_time = std::chrono::steady_clock::now();
+				//poseTracker.update(std::move(ir_ptr), std::move(depth_ptr));
+				//curr_time = std::chrono::steady_clock::now();
+				//elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_time - last_time).count();
+				//std::cout << "Update Pose dt:" << elapsed_ms << std::endl;
 
-				for (i = 0; i < 10; i++) {
-					if (poseTracker.hasNewPose()) break; //Breaks if new pose is calculated
-					using namespace std::chrono_literals;
-					std::this_thread::sleep_for(10ms); //Sleeps main to wait for new pose
-				}
-				curr_time = std::chrono::steady_clock::now();
-				elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_time - last_time).count();
-				std::cout << "Has Pose dt:" << elapsed_ms << std::endl;
+				//for (i = 0; i < 10; i++) {
+				//	if (poseTracker.hasNewPose()) break; //Breaks if new pose is calculated
+				//	using namespace std::chrono_literals;
+				//	std::this_thread::sleep_for(10ms); //Sleeps main to wait for new pose
+				//}
+				//curr_time = std::chrono::steady_clock::now();
+				//elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_time - last_time).count();
+				//std::cout << "Has Pose dt:" << elapsed_ms << std::endl;
 
 				//Check if pose is computed
-				if (i == 10) {
-					//Failed to compute pose, make the matrix all "-1's" to indicate it is false			
-					cam_T_us << -1, -1, -1, -1,
-						-1, -1, -1, -1,
-						-1, -1, -1, -1,
-						-1, -1, -1, -1;
-				}
-				else {
-					//Computes Pose
-					cam_T_us = poseTracker.getPose();
-				}
-				curr_time = std::chrono::steady_clock::now();
-				elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_time - last_time).count();
-				std::cout << "Pose dt:" << elapsed_ms << std::endl;
+				//if (i == 10) {
+				//	//Failed to compute pose, make the matrix all "-1's" to indicate it is false			
+				//	cam_T_us << -1, -1, -1, -1,
+				//		-1, -1, -1, -1,
+				//		-1, -1, -1, -1,
+				//		-1, -1, -1, -1;
+				//}
+				//else {
+				//	//Computes Pose
+				//	cam_T_us = poseTracker.getPose();
+				//}
+				//curr_time = std::chrono::steady_clock::now();
+				//elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_time - last_time).count();
+				//std::cout << "Pose dt:" << elapsed_ms << std::endl;
 
 				//************************Get Force/IMU************************
-				last_time = std::chrono::steady_clock::now();
-				shellReader.getForceString(raw_force_string); //Gets most recent force string
-				shellReader.getTempIMUString(temp_imu_string); //Gets most recent Temperature + IMU String
+				//last_time = std::chrono::steady_clock::now();
+				//shellReader.getForceString(raw_force_string); //Gets most recent force string
+				//shellReader.getTempIMUString(temp_imu_string); //Gets most recent Temperature + IMU String
 
-				//Converts raw force values (binary) to estimated force values, if raw forces are NaN's then NaN's are returned
-				force_string_xyz = calculateForceVals(raw_force_string, force_calibration_mat, force_zeroing_offset);
-				//std::cout << "Raw Force Reading: " << raw_force_string << ", XYZ Force Reading: " << force_string_xyz << std::endl;
+				////Converts raw force values (binary) to estimated force values, if raw forces are NaN's then NaN's are returned
+				//force_string_xyz = calculateForceVals(raw_force_string, force_calibration_mat, force_zeroing_offset);
+				////std::cout << "Raw Force Reading: " << raw_force_string << ", XYZ Force Reading: " << force_string_xyz << std::endl;
 
-				curr_time = std::chrono::steady_clock::now();
-				elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_time - last_time).count();
+				//curr_time = std::chrono::steady_clock::now();
+				//elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_time - last_time).count();
 
 				//************************Get US Frame*************************
-				last_time = std::chrono::steady_clock::now();
-				cv::Mat usFrame = USStreamer.getFrame(); //Gets most recent us frame
-				if (!usFrame.empty()) //If the ultraasound frame is not empty, we write the US frame and increment us counter
-				{
-					us_frame_count++;
-					//datalogger.writeUSFrame(usFrame);
-					if (show_us_stream)
-					{
-						USStreamer.showFrame();
-					}
-				}
-				curr_time = std::chrono::steady_clock::now();
-				elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_time - last_time).count();
+				//last_time = std::chrono::steady_clock::now();
+				//cv::Mat usFrame = USStreamer.getFrame(); //Gets most recent us frame
+				//if (!usFrame.empty()) //If the ultraasound frame is not empty, we write the US frame and increment us counter
+				//{
+				//	us_frame_count++;
+				//	//datalogger.writeUSFrame(usFrame);
+				//	if (show_us_stream)
+				//	{
+				//		USStreamer.showFrame();
+				//	}
+				//}
+				//curr_time = std::chrono::steady_clock::now();
+				//elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_time - last_time).count();
 
 				//************************Logging Data*************************
-				last_time = std::chrono::steady_clock::now();
-				//get the time since running
-				auto current_time = std::chrono::high_resolution_clock::now();
-				elapsed_time = current_time - start_time;
-				elapsed_seconds = elapsed_time.count();
+				//last_time = std::chrono::steady_clock::now();
+				////get the time since running
+				//auto current_time = std::chrono::high_resolution_clock::now();
+				//elapsed_time = current_time - start_time;
+				//elapsed_seconds = elapsed_time.count();
 
-				realsense_frame_count++; //Increments the depth frame counter
+				//realsense_frame_count++; //Increments the depth frame counter
 
-				//Writes pose/force to scandata_datetime.csv
-				datalogger.writeCSVRow(elapsed_seconds, realsense_frame_count, us_frame_count, cam_T_us, raw_force_string, force_string_xyz, temp_imu_string);
-				//Writes the depth frame to depthframe_datetime.mp4
-				cv::Mat depth_mat(cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT), CV_16UC1, (void*)realsense_data.depthFrame.get_data(), cv::Mat::AUTO_STEP);
-				//datalogger.writeDepthFrame(depth_mat);
+				////Writes pose/force to scandata_datetime.csv
+				//datalogger.writeCSVRow(elapsed_seconds, realsense_frame_count, us_frame_count, cam_T_us, raw_force_string, force_string_xyz, temp_imu_string);
+				////Writes the depth frame to depthframe_datetime.mp4
+				//cv::Mat depth_mat(cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT), CV_16UC1, (void*)realsense_data.depthFrame.get_data(), cv::Mat::AUTO_STEP);
+				////datalogger.writeDepthFrame(depth_mat);
 
-				curr_time = std::chrono::steady_clock::now();
-				elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_time - last_time).count();
+				//curr_time = std::chrono::steady_clock::now();
+				//elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_time - last_time).count();
 
 				//************************Displaying Frames********************
-				if (show_pose) //Shows the pose
-				{
-						cv::Mat cvT(4, 4, CV_64F);
-						for (int i = 0; i < 4; ++i) {
-							for (int j = 0; j < 4; ++j) {
-								cvT.at<double>(i, j) = cam_T_us(i, j);
-							}
-						}
+		//		if (show_pose) //Shows the pose
+		//		{
+		//				cv::Mat cvT(4, 4, CV_64F);
+		//				for (int i = 0; i < 4; ++i) {
+		//					for (int j = 0; j < 4; ++j) {
+		//						cvT.at<double>(i, j) = cam_T_us(i, j);
+		//					}
+		//				}
 
-						//Displaying image
-						rotation = cvT(cv::Range(0, 3), cv::Range(0, 3));
-						translation = cvT(cv::Range(0, 3), cv::Range(3, 4));
-						cv::Mat outputImage;
-						cv::cvtColor(ir_mat_left, outputImage, cv::COLOR_GRAY2BGR);
-						cv::Rodrigues(rotation, rvec);
-						cv::drawFrameAxes(outputImage, cameraMatrix, distCoeffs, rvec, translation, 0.1, 3);
-						cv::imshow("Pose Visualization", outputImage);
-						if (!(show_ir || show_clip_area_andkeypoints))
-						{
-							char c = cv::waitKey(1);	//grabs key press, if q we close
-							if (c == 'q')
-							{
-								break;
+		//				//Displaying image
+		//				rotation = cvT(cv::Range(0, 3), cv::Range(0, 3));
+		//				translation = cvT(cv::Range(0, 3), cv::Range(3, 4));
+		//				cv::Mat outputImage;
+		//				cv::cvtColor(ir_mat_left, outputImage, cv::COLOR_GRAY2BGR);
+		//				cv::Rodrigues(rotation, rvec);
+		//				cv::drawFrameAxes(outputImage, cameraMatrix, distCoeffs, rvec, translation, 0.1, 3);
+		//				cv::imshow("Pose Visualization", outputImage);
+		//				if (!(show_ir || show_clip_area_andkeypoints))
+		//				{
+		//					char c = cv::waitKey(1);	//grabs key press, if q we close
+		//					if (c == 'q')
+		//					{
+		//						break;
 
-							}
+		//					}
 
-						}
-				}
+		//				}
+		//		}
 
-				if (show_clip_area_andkeypoints) //Shows the keypoints
-				{
-					for (const auto& coord : poseTracker.m_objectPose.imageCoords) {
-							// draw the point on the image (circle with radius 3, red color)
-							cv::circle(ir_mat_left, cv::Point(coord[0], coord[1]), 3, cv::Scalar(0, 0, 255), -1);
-					}
-				}
-				if (show_ir || show_clip_area_andkeypoints) //Shows the ir image
-				{
+		//		if (show_clip_area_andkeypoints) //Shows the keypoints
+		//		{
+		//			for (const auto& coord : poseTracker.m_objectPose.imageCoords) {
+		//					// draw the point on the image (circle with radius 3, red color)
+		//					cv::circle(ir_mat_left, cv::Point(coord[0], coord[1]), 3, cv::Scalar(0, 0, 255), -1);
+		//			}
+		//		}
+		//		if (show_ir || show_clip_area_andkeypoints) //Shows the ir image
+		//		{
 
-					cv::imshow("IR Left", ir_mat_left);
-					char c = cv::waitKey(1);	//grabs key press, if q we close
-					if (c == 'q')
-					{
-						break;
+		//			cv::imshow("IR Left", ir_mat_left);
+		//			char c = cv::waitKey(1);	//grabs key press, if q we close
+		//			if (c == 'q')
+		//			{
+		//				break;
 
-					}
-				}
+		//			}
+		//		}
 
-				if (show_depth) //Shows the depth frame from the realsense
-				{					
-					cv::minMaxIdx(depth_mat, &minVal, &maxVal); //Finds the min and max values 
-					depth_mat.convertTo(depth_normalized, CV_8UC1, 255.0 / maxVal); //Normalizes from 0-255					
-					cv::applyColorMap(depth_normalized, depth_colormap, cv::COLORMAP_JET); //Applies the colour map
+		//		if (show_depth) //Shows the depth frame from the realsense
+		//		{					
+		//			cv::minMaxIdx(depth_mat, &minVal, &maxVal); //Finds the min and max values 
+		//			depth_mat.convertTo(depth_normalized, CV_8UC1, 255.0 / maxVal); //Normalizes from 0-255					
+		//			cv::applyColorMap(depth_normalized, depth_colormap, cv::COLORMAP_JET); //Applies the colour map
 
-					// Display the heatmap
-					cv::imshow("Depth Heatmap", depth_colormap);
+		//			// Display the heatmap
+		//			cv::imshow("Depth Heatmap", depth_colormap);
 
-					if (!(show_ir || show_clip_area_andkeypoints||show_pose))
-					{
-						char c = cv::waitKey(1);	//grabs key press, if q we close
-						if (c == 'q')
-						{
-							break;
+		//			if (!(show_ir || show_clip_area_andkeypoints||show_pose))
+		//			{
+		//				char c = cv::waitKey(1);	//grabs key press, if q we close
+		//				if (c == 'q')
+		//				{
+		//					break;
 
-						}
+		//				}
 
-					}
+		//			}
 
 
-				}
+		//		}
 
 			}
 		}
