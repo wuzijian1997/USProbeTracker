@@ -83,3 +83,64 @@ bool StereoCalibClass::addCalibrationImages(const cv::Mat& left_image, const cv:
 
 
 }
+
+
+void StereoCalibClass::prepareObjectPoints() {
+    _object_points.clear();
+    std::vector<cv::Point3f> objP;
+
+    for (int i = 0; i < _board_height; i++) {
+        for (int j = 0; j < _board_width; j++) {
+            objP.emplace_back((float)j * _square_size, (float)i * _square_size, 0);
+        }
+    }
+
+    for (size_t i = 0; i < _left_image_points.size(); i++) {
+        _object_points.push_back(objP);
+    }
+}
+
+bool StereoCalibClass::calibrate()
+{
+    if (_left_image_points.size() < MINIMUM_NUM_CHECKERBOARDS || _right_image_points.size() < MINIMUM_NUM_CHECKERBOARDS) {
+        std::cout << "Error: Not enough valid calibration images." << std::endl;
+        return false;
+    }
+
+    //Creates the corresponding point object
+    prepareObjectPoints();
+
+    //Does mono calibration for each IR camera to seed stereo calibration
+    cv::calibrateCamera(_object_points, _left_image_points, cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT),
+        _left_camera_mat,_left_dist,cv::noArray(),cv::noArray());
+
+    cv::calibrateCamera(_object_points, _right_image_points, cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT),
+        _right_camera_mat, _right_dist, cv::noArray(), cv::noArray());
+
+    
+    //Does the stereo calibration
+    _calibration_error=cv::stereoCalibrate(_object_points, _left_image_points, _right_image_points,
+        _left_camera_mat, _left_dist, _right_camera_mat, _right_dist, cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT),
+        _R, _T, _E, _F, cv::CALIB_FIX_INTRINSIC);
+
+    std::cout << "Stereo Calibration Error: " << _calibration_error << std::endl;
+
+
+    return true;
+
+}
+
+void StereoCalibClass::saveCalibration(const std::string& filename)
+{
+    cv::FileStorage fs1(filename, cv::FileStorage::WRITE);
+    fs1 << "left_mat" << _left_camera_mat;
+    fs1 << "left_dist" << _left_dist;
+    fs1 << "right_mat" << _right_camera_mat;
+    fs1 << "right_dist" << _right_dist;
+    fs1 << "R" << _R;
+    fs1 << "T" << _T;
+    fs1 << "E" << _E;
+    fs1 << "F" << _F;
+    fs1.release();
+    std::cout << "Calibration Saved To: " << filename << std::endl;
+}

@@ -10,6 +10,10 @@
 #include <stdio.h>
 #include <iostream>
 
+#include "RealSense.h"
+
+const int MINIMUM_NUM_CHECKERBOARDS = 10;
+
 class StereoCalibClass
 {
 public:
@@ -22,6 +26,9 @@ public:
 	//Adds a pair of calibration images
 	bool addCalibrationImages(const cv::Mat& left_image, const cv::Mat& right_image);
 
+	// Perform the stereo calibration
+	bool calibrate();
+
 
 private:
 	int _board_width, _board_height;
@@ -31,5 +38,16 @@ private:
 
 	//Vector of vectors of corresponding left/right images points
 	std::vector<std::vector<cv::Point2f>> _left_image_points, _right_image_points;
+
+	//Vector of vectors of the object points (3D chessboard points)
+	std::vector<std::vector<cv::Point3f>> _object_points;
+
+	//Camera Calibration coefficients
+	cv::Mat _left_camera_mat, _left_dist, _right_camera_mat, _right_dist;
+	cv::Mat _R, _T, _E, _F;
+	double _calibration_error;
+
+
+	void prepareObjectPoints(); //Depending on the size of the left_image_points, we create vector of vector of checkerboard points
 };
 
