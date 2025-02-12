@@ -12,7 +12,7 @@ RealSense::~RealSense()
 
 //Inits the RealSense Camera
 bool RealSense::RealSenseInit(int width, int height, int fps, float enable_laser, float laser_power, float gain,
-    float filter_alpha,float filter_delta)
+    float filter_alpha,float filter_delta,float enable_autoexposure, float exposure_level)
 {
     std::cout << "************************************" << std::endl;
     std::cout << "Setting Up RealSense Device(s)" << std::endl;
@@ -70,14 +70,14 @@ bool RealSense::RealSenseInit(int width, int height, int fps, float enable_laser
         // Disable auto exposure
         if (sensor.supports(RS2_OPTION_ENABLE_AUTO_EXPOSURE))
         {
-            sensor.set_option(RS2_OPTION_ENABLE_AUTO_EXPOSURE, 0.0f); // Turn OFF auto exposure
+            sensor.set_option(RS2_OPTION_ENABLE_AUTO_EXPOSURE, enable_autoexposure); // Turn OFF auto exposure
             std::cout << "Auto exposure disabled for sensor: " << sensor.get_info(RS2_CAMERA_INFO_NAME) << std::endl;
         }
 
         // Set manual exposure
         if (sensor.supports(RS2_OPTION_EXPOSURE))
         {
-            sensor.set_option(RS2_OPTION_EXPOSURE, 3000.0f); // Set exposure to 3000
+            sensor.set_option(RS2_OPTION_EXPOSURE, exposure_level); // Set exposure to 3000
             std::cout << "Exposure set to 3000 for sensor: " << sensor.get_info(RS2_CAMERA_INFO_NAME) << std::endl;
         }
 
@@ -102,6 +102,13 @@ bool RealSense::RealSenseInit(int width, int height, int fps, float enable_laser
         // Query min and max values:
         //auto range = depth_sensor.get_option_range(RS2_OPTION_LASER_POWER);
         depth_sensor.set_option(RS2_OPTION_LASER_POWER, laser_power); // Set  power
+    }
+
+    // Disable RSM by setting MIN_DISTANCE to 0
+    if (depth_sensor.supports(RS2_OPTION_MIN_DISTANCE))
+    {
+        depth_sensor.set_option(RS2_OPTION_MIN_DISTANCE, 0.0f);
+        std::cout << "RSM disabled by setting RS2_OPTION_MIN_DISTANCE to 0" << std::endl;
     }
 
 

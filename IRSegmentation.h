@@ -53,7 +53,7 @@ const int BLOB_MIN_DSTANCE_BETWEEN = 2;
 //*******Find Keypoints Constants***************
 const float KEYPOINTS_MAX_INTENSITY = 1000.0f;
 const double NEAR_CLIP = 0.3f;
-const double FAR_CLIP = 1.7f; //Average Arm Span is 65 cm, we want the tracker to be about the same distance from eyes to hand
+const double FAR_CLIP = 6.0f; //Average Arm Span is 65 cm, we want the tracker to be about the same distance from eyes to hand
 
 
 class IRSegmentation

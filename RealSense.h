@@ -27,6 +27,8 @@ const float REALSENSE_LASER_POWER = 50.0f;
 const float REALSENSE_GAIN = 16.0f; //Gain of IR image, key for removing noise
 const int REALSENSE_THREAD_DELAY = 2; //The frame producer thread waits this in ms
 const int REALSENSE_RETRY = 100/ REALSENSE_THREAD_DELAY; //We restart the pipeline if it skips by this amount
+const float REALSENSE_AUTOEXPOSURE_ENABLE = 0.0f; //Disables the auto exposure
+const float REALSENSE_EXPOSURE_LEVEL = 3000.0f; //The amount of exposure
 
 //Depth Frame Filtering Constants
 const float TEMPORAL_DEPTH_FILTER_ALPHA = 0.2f;
@@ -63,7 +65,7 @@ public:
 	// @param gain sets the gain of the left/right IR images
 	// @param filter_alpha sets alpha of temporal depth filter used on depth vector passed to segmentation
 	// @param filter_delta sets delta of temporal depth filter used on depth vector passed to segmentation
-	bool RealSenseInit(int width, int height,int fps, float enable_laser, float laser_power,float gain,float filter_alpha,float filter_delta);
+	bool RealSenseInit(int width, int height,int fps, float enable_laser, float laser_power,float gain,float filter_alpha,float filter_delta, float enable_autoexposure, float exposure_level);
 
 	//Starts/stops threading and reading camera data
 	void start();
