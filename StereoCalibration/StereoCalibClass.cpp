@@ -26,15 +26,15 @@ bool StereoCalibClass::addCalibrationImages(const cv::Mat& left_image, const cv:
     cv::Size board_size(_board_width, _board_height);
 
     //Finding the chessboard corners
-    bool found_left = cv::findChessboardCorners(left_image, board_size, corners_left);
-    bool found_right = cv::findChessboardCorners(right_image, board_size, corners_right);
+    bool found_left = cv::findChessboardCorners(left_image, board_size, corners_left , cv::CALIB_CB_ADAPTIVE_THRESH | cv::CALIB_CB_FILTER_QUADS);
+    bool found_right = cv::findChessboardCorners(right_image, board_size, corners_right , cv::CALIB_CB_ADAPTIVE_THRESH | cv::CALIB_CB_FILTER_QUADS);
     if (found_left && found_right)
     {
         //Subpix the corners
-        cv::cornerSubPix(left_image, corners_left, cv::Size(11, 11), cv::Size(-1, -1),
+        cv::cornerSubPix(left_image, corners_left, cv::Size(5, 5), cv::Size(-1, -1),
             cv::TermCriteria(cv::TermCriteria::EPS | cv::TermCriteria::MAX_ITER, 500, 0.001));
         
-        cv::cornerSubPix(right_image, corners_right, cv::Size(11, 11), cv::Size(-1, -1),
+        cv::cornerSubPix(right_image, corners_right, cv::Size(5, 5), cv::Size(-1, -1),
             cv::TermCriteria(cv::TermCriteria::EPS | cv::TermCriteria::MAX_ITER, 500, 0.001));
 
 
@@ -46,6 +46,10 @@ bool StereoCalibClass::addCalibrationImages(const cv::Mat& left_image, const cv:
         //Draws corners onto images
         cv::Mat left_new = left_image.clone();
         cv::Mat right_new = right_image.clone();
+       
+        cv::cvtColor(left_new, left_new, cv::COLOR_GRAY2BGR);
+        cv::cvtColor(right_new, right_new, cv::COLOR_GRAY2BGR);
+
         cv::drawChessboardCorners(left_new, board_size, corners_left, found_left);
         cv::drawChessboardCorners(right_new, board_size, corners_right, found_right);
 
@@ -141,6 +145,7 @@ void StereoCalibClass::saveCalibration(const std::string& filename)
     fs1 << "T" << _T;
     fs1 << "E" << _E;
     fs1 << "F" << _F;
+    fs1 << "CalibError" << _calibration_error;
     fs1.release();
     std::cout << "Calibration Saved To: " << filename << std::endl;
 }

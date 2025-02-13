@@ -18,7 +18,7 @@ class StereoCalibClass
 {
 public:
 	// Constructor: Set board dimensions and square size
-	StereoCalibClass(int board_width, int board_height, float square_size,std::string chessboard_filepath);
+	StereoCalibClass(int board_width, int board_height, float square_size, std::string chessboard_filepath);
 	
 	//Destructor
 	~StereoCalibClass();
@@ -28,6 +28,9 @@ public:
 
 	// Perform the stereo calibration
 	bool calibrate();
+
+	//Save the calibration
+	void saveCalibration(const std::string& filename);
 
 
 private:

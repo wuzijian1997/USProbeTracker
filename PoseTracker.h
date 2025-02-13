@@ -31,7 +31,7 @@ public:
 	/// @param world_T_cam Pose of the camera in the world when the images were captured</param>
 	/// @param irIm Infrared reflectivity image for segmenting the markers. Ownership of the pointer passes to this function</param>
 	/// @param depthMap Depth map for obtaining the depth value at the segmented locations. Ownership of the pointer passes to this function</param>
-	void update(std::unique_ptr<std::vector<uint8_t>> irIm, std::unique_ptr<std::vector<uint16_t>> depthMap);
+	void update(std::unique_ptr<std::vector<uint8_t>> irImLeft, std::unique_ptr<std::vector<uint8_t>> irImRight);
 
 	/// Return the most recent computed pose of the tracked object
 	Eigen::Matrix4d getPose();
@@ -60,12 +60,12 @@ public:
 
 private:
 	struct SensorPacket {
-		SensorPacket(std::unique_ptr<std::vector<uint8_t>> ir, std::unique_ptr<std::vector<uint16_t>> depth)
-			: irIm(std::move(ir))
-			, depthMap(std::move(depth))
+		SensorPacket(std::unique_ptr<std::vector<uint8_t>> ir_left, std::unique_ptr<std::vector<uint8_t>> ir_right )
+			: irImLeft(std::move(ir_left))
+			, irImRight(std::move(ir_right))
 		{}
-		std::unique_ptr<std::vector<uint8_t>> irIm;
-		std::unique_ptr<std::vector<uint16_t>> depthMap;
+		std::unique_ptr<std::vector<uint8_t>> irImLeft;
+		std::unique_ptr<std::vector<uint8_t>> irImRight;
 	};
 
 	/// The IR tracker which actually interacts with the images and finds the keypoints

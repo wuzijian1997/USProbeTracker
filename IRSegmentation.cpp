@@ -2,17 +2,34 @@
 
 //Inits the IR tracker:
 
-IRSegmentation::IRSegmentation(int width, int height, double depth_scale, LogLevel logLevel,bool show_clip_area)
+IRSegmentation::IRSegmentation(int width, int height, double depth_scale, LogLevel logLevel,bool show_clip_area,
+    cv::Mat left_camera_mat,cv::Mat left_dist,cv::Mat right_camera_mat,cv::Mat right_dist,
+    cv::Mat R,cv::Mat T, cv::Mat E, cv::Mat F)
     : m_imWidth(width)
     , m_imHeight(height)
     , m_logLevel(logLevel),
     m_depth_scale(depth_scale),
-    m_show_clip_area(show_clip_area)
+    m_show_clip_area(show_clip_area),
+    _left_camera_mat(left_camera_mat),
+    _left_dist(left_dist),
+    _right_camera_mat(right_camera_mat),
+    _right_dist(right_dist),
+    _R(R),
+    _T(T),
+    _E(E),
+    _F(F)
 {
     m_xMaxCrop = width - 1;
     m_yMaxCrop = height - 1;
 
-    // Default to normalized coordinates
+
+    //Gets the stereo rectification map
+    cv::Mat Q;
+    cv::stereoRectify(left_camera_mat, left_dist, right_camera_mat, right_dist, cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT), R, T,
+        _R_left, _R_right, _P_left, _P_right, Q);
+
+
+    // Default to normalized coordinates (not used)
     m_imagePointToCameraUnitPlane = [width, height](const std::array<double, 2>& uv, std::array<double, 2>& xy) {
         xy[0] = uv[0] / width;
         xy[1] = uv[1] / height;
@@ -100,7 +117,7 @@ IRSegmentation::LogLevel IRSegmentation::getLogLevel() {
 
 //*****************Segmentation Methods******************
 
-std::shared_ptr<IRSegmentation::IrDetection> IRSegmentation::findKeypointsWorldFrame(std::unique_ptr<std::vector<uint8_t>> irIm, std::unique_ptr<std::vector<uint16_t>> depthMap)
+std::shared_ptr<IRSegmentation::IrDetection> IRSegmentation::findKeypointsWorldFrame(std::unique_ptr<std::vector<uint8_t>> irImLeft, std::unique_ptr<std::vector<uint8_t>> irImRight)
 {
     auto detection = std::make_shared<IrDetection>();
 
@@ -116,98 +133,211 @@ std::shared_ptr<IRSegmentation::IrDetection> IRSegmentation::findKeypointsWorldF
     //}
     const std::vector<int> _imagesz = { height,width };
 
-    //Creates cv Mat image from data
-    cv::Mat im = cv::Mat(_imagesz, CV_8UC1, irIm->data(), 0);
-    if (im.empty()) {
+    //Creates cv Mat images from left/right data
+    cv::Mat imLeft = cv::Mat(_imagesz, CV_8UC1, irImLeft->data(), 0);
+    cv::Mat imRight = cv::Mat(_imagesz, CV_8UC1, irImRight->data(), 0);
+
+    if (imLeft.empty()||imRight.empty()) { //Checks that image is valid
         return detection;
     }
 
-    //Crops the image to the ROI
+    //Crops the image to the left ROI   
+    cv::Rect leftROI(xMinCrop, yMinCrop, xMaxCrop - xMinCrop + 1, yMaxCrop - yMinCrop + 1);
 
-    cv::Rect roi(xMinCrop, yMinCrop, xMaxCrop - xMinCrop + 1, yMaxCrop - yMinCrop + 1);
-    cv::Mat im8b = im(roi).clone(); //Crops the image to the ROI
+    //Computes ROI in the right image based on left image roi (assumes depth of 1.25m)
+    cv::Rect rightROI = transformROIToRight(leftROI, _left_camera_mat, _right_camera_mat, _R, _T);
 
-    bool success = false;
-    std::vector<cv::KeyPoint> keypoints; //Creates keypoints object
+    //Ensure the ROI is within valid bounds
+    rightROI.x = std::max(0, std::min(rightROI.x, width - 1));
+    rightROI.y = std::max(0, std::min(rightROI.y, height - 1));
+
+    rightROI.width = std::min(width - rightROI.x, rightROI.width);
+    rightROI.height = std::min(height - rightROI.y, rightROI.height);
+
+
+    //Crops images to the ROIs
+    cv::Mat im_left_cropped = imLeft(leftROI).clone();
+    cv::Mat im_right_cropped = imRight(rightROI).clone();
+    
+    //Detect keypoints in the unrectified left image
+    bool success_left = false;
+    std::vector<cv::KeyPoint> keypoints_left; //Creates keypoints object
     if (m_mode == DetectionMode::Blob)
-        success = blobDetect(im8b, keypoints);
+        success_left = blobDetect(im_left_cropped, keypoints_left);
     else //Use contour detection
-        success = contourDetect(im8b, keypoints); //Finds the object contours
+        success_left = contourDetect(im_left_cropped, keypoints_left); //Finds the object contours
 
-    //Map to 3D
-    if (success)
+    //Detect keypoints in the unrectified right image
+    bool success_right = false;
+    std::vector<cv::KeyPoint> keypoints_right; //Creates keypoints object
+    if (m_mode == DetectionMode::Blob)
+        success_right = blobDetect(im_right_cropped, keypoints_right);
+    else //Use contour detection
+        success_right = contourDetect(im_right_cropped, keypoints_right); //Finds the object contours
+
+    //Map to 3D using stereo triangulation
+    if (success_left && success_right)
     {
         //For display
         if (m_show_clip_area)
         {
-            cv::Mat outputImage;
-            cv::drawKeypoints(im8b, keypoints, outputImage, cv::Scalar(0, 255, 0), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
-            cv::imshow("Contours on Cropped", outputImage);
+            cv::Mat outputImage_left, outputImage_right;
+            //Keypoints drawn on left image
+            cv::drawKeypoints(im_left_cropped, keypoints_left, outputImage_left, cv::Scalar(0, 255, 0), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
+            cv::drawKeypoints(im_right_cropped, keypoints_right, outputImage_right, cv::Scalar(0, 0, 255), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
+
+            cv::imshow("Contours on Left Cropped", outputImage_left);
+            cv::imshow("Contours on Right Cropped", outputImage_right);
             cv::waitKey(1);
         }
 
-        //Save the 3D Points
-        for (size_t i = 0; i < keypoints.size(); i++)
-        {
-            // Point in image array
-            double x = keypoints[i].pt.x + xMinCrop;
-            double y = keypoints[i].pt.y + yMinCrop;
-            int xInt = static_cast<int>(std::round(x));
-            int yInt = static_cast<int>(std::round(y));
+        //*********Step 1: Get 2D Keypoint Location in Original Left/Right (uncropped) image planes*************
+        std::vector<cv::Point2f> left_points, right_points;
+        std::vector<int> valid_keypoints_left_indices; //Tracks indices of valid keypoints (ones that aren't ouside the left camera sensor)
 
+        //Left 2D keypoints
+        for (size_t i = 0; i < keypoints_left.size(); i++)
+        {
+            double x = keypoints_left[i].pt.x + xMinCrop;
+            double y = keypoints_left[i].pt.y + yMinCrop;
+            
+            if (y < m_depthCamRoiUpperRow || y > m_depthCamRoiLowerRow || x < m_depthCamRoiLeftCol || x > m_depthCamRoiRightCol) {
+                if (m_logLevel == LogLevel::Verbose)
+                    LOG << "Actually out of bounds";
+                continue;
+            }
+            valid_keypoints_left_indices.push_back(i);
+            left_points.emplace_back(x, y);
+        }
+
+        //Right 2D keypoints
+        for (size_t i = 0; i < keypoints_right.size(); i++)
+        {
+            double x = keypoints_right[i].pt.x + rightROI.x;
+            double y = keypoints_right[i].pt.y + rightROI.y;
 
             if (y < m_depthCamRoiUpperRow || y > m_depthCamRoiLowerRow || x < m_depthCamRoiLeftCol || x > m_depthCamRoiRightCol) {
                 if (m_logLevel == LogLevel::Verbose)
                     LOG << "Actually out of bounds";
                 continue;
             }
+            right_points.emplace_back(x,y);
+        }
 
-            std::array<double, 2> xy = { 0, 0 };
-            std::array<double, 2> uv = { x , y };
-            m_imagePointToCameraUnitPlane(uv, xy);
-            auto pointOnUnitPlane = Eigen::Vector3d(xy[0], xy[1], 1);
+        //******************Step 2: Undistort the keypoints in the left/right images***********************
+        //It projects them onto rectified image planes
+        std::vector<cv::Point2f> left_undistorted, right_undistorted;
+        cv::undistortPoints(left_points, left_undistorted, _left_camera_mat, _left_dist,_R_left,_P_left);
+        cv::undistortPoints(right_points, right_undistorted, _right_camera_mat, _right_dist,_R_right,_P_right);
+
+        //**********Step 3: Match points between left/right images using epipolar constraints**************
+        std::vector<cv::Point2f> left_matched, right_matched;
+
+        // Create a boolean vector to track used points in the right image
+        std::vector<bool> right_used(right_undistorted.size(), false);
+
+        //Tracks which left points end up being used in left_matched
+        std::vector<int> valid_left_point_indices;
+
+        for (size_t i = 0; i < left_undistorted.size(); i++) //Loops for all points in left
+        {
+            float min_dist = 1e6; //Inits the minimum distance in the x-direction
+            int best_match_idx = -1; //The best match index in the right_undistorted image
+            cv::Point2f left_point = left_undistorted[i];
+
+            // Iterate over right points
+            for (size_t j = 0; j < right_undistorted.size();j++) {
+                cv::Point2f right_point = right_undistorted[j];
+                if (!right_used[j] && std::abs(left_point.y - right_point.y) < EPIPOLAR_MATCH_Y_THRESHOLD) { // Check epipolar constraint
+                    float distance = std::abs(left_point.x - right_point.x);
+                    if (distance < min_dist) {
+                        min_dist = distance;
+                        best_match_idx = j;
+                    }
+                }
+            }
+
+            if (best_match_idx != -1 && min_dist < EPIPOLAR_MATCH_X_THRESHOLD)
+            {
+                left_matched.push_back(left_point);
+                right_matched.push_back(right_undistorted[best_match_idx]);
+                right_used[best_match_idx] = true; // Mark the right point as used
+
+                valid_left_point_indices.push_back(i);
+            }
+
+        }
 
 
-            //Find Depth at point
-            auto depth = (*depthMap)[(int)(yInt * width + xInt)];
-            double depth_m = (double)depth * m_depth_scale; //Converts depth (16 bit representation) to meters
+        //************Step 3.5 Refine Correspondances (maybe not needed)*****************
+        /*cv::Mat refined_left, refined_right;
+        cv::correctMatches(_F, left_matched, right_matched, refined_left, refined_right);
+        left_matched = refined_left;
+        right_matched = refined_right;*/
 
-            if (depth_m<m_depthNearClip || depth_m>m_depthFarClip) {
-                //std::cout << "Entered" << std::endl;
+        //**********************Step 4: Triangulate the 3D points************************
+        cv::Mat left_cam_points4d;
+        cv::triangulatePoints(_P_left, _P_right, left_matched, right_matched, left_cam_points4d);
+
+        cv::Mat left_cam_points3D_rect;
+        cv::convertPointsFromHomogeneous(left_cam_points4d.t(), left_cam_points3D_rect);
+
+        //****Step5: transform to left camera frame and find blob diameter******
+        for (int i = 0; i < left_cam_points3D_rect.rows; i++)
+        {
+            
+            //Get current 3D point
+            cv::Mat ptMat_rect = left_cam_points3D_rect.row(i).t();
+
+            //Transform from rectified left coordinate system to original left camera coordinate system
+            cv::Mat ptMat_original = _R_left_inv * ptMat_rect;
+            //Extract the transformc coordinates
+            double X = ptMat_original.at<double>(0, 0);
+            double Y = ptMat_original.at<double>(1, 0);
+            double Z = ptMat_original.at<double>(2, 0);
+            //Check that the point is within the clip area
+            if (Z<m_depthNearClip || Z>m_depthFarClip) {
+                //        //std::cout << "Entered" << std::endl;
                 continue;
 
             }
-            Eigen::Vector3d pt = depth_m * pointOnUnitPlane.normalized();
 
-            //Find the diameter of the blob in the world coordinates
-            auto left = (x - keypoints[i].size / 2 > 0) ? x - keypoints[i].size / 2 : 0;
-            auto right = (x + keypoints[i].size / 2 < width) ? x + keypoints[i].size / 2 : width;
-            std::array<double, 2> xyL = { 0, 0 };
-            std::array<double, 2> uvL = { left , y };
-            m_imagePointToCameraUnitPlane(uvL, xyL);
-            std::array<double, 2> xyR = { 0, 0 };
-            std::array<double, 2> uvR = { right , y };
-            m_imagePointToCameraUnitPlane(uvR, xyR);
+            //****************Find Blob Diameter in Left Camera Coord System********************
 
-            auto leftPoint = Eigen::Vector3d(xyL[0], xyL[1], 1);
-            auto rightPoint = Eigen::Vector3d(xyR[0], xyR[1], 1);
+            //Find the diameter of the blob in the left image plane
+            double keypoint_diameter_px = keypoints_left[valid_keypoints_left_indices[valid_left_point_indices[i]]].size; //Get pixel diameter in pixels
 
-            leftPoint = depth_m * leftPoint.normalized();
-            rightPoint = depth_m * rightPoint.normalized();
-            double diam = (rightPoint - leftPoint).norm();
+            //Gets the 2D positions of left/right edges in the left image plane
+            double x_left_edge_px = left_points[valid_left_point_indices[i]].x - keypoint_diameter_px / 2;
+            double x_right_edge_px = left_points[valid_left_point_indices[i]].x + keypoint_diameter_px / 2;
 
-            // Save the points
-            detection->points.push_back(pt);
+            std::vector<cv::Point2f> edge_pixels = {
+                cv::Point2f(x_left_edge_px, left_points[valid_left_point_indices[i]].y),
+                 cv::Point2f(x_right_edge_px, left_points[valid_left_point_indices[i]].y)
+            };
+
+            //Get the edges in the left camera coordinate system
+            std::vector<cv::Point2f> edge_leftcamera;
+            cv::undistortPoints(edge_pixels, edge_leftcamera, _left_camera_mat, _left_dist);
+
+            //Convert the two edges to 3D using estimated Z of center of keypoint
+            Eigen::Vector3d left_edge_3D(edge_leftcamera[0].x * Z, edge_leftcamera[0].y * Z, Z);
+            Eigen::Vector3d right_edge_3D(edge_leftcamera[1].x* Z, edge_leftcamera[1].y* Z, Z);
+            double diam = (left_edge_3D - right_edge_3D).norm();
+
+            int xInt = static_cast<int>(std::round(left_matched[i].x));
+            int yInt = static_cast<int>(std::round(left_matched[i].y));
+
+
+            detection->points.push_back(Eigen::Vector3d(X, Y, Z));
             detection->imCoords.emplace_back(xInt, yInt);
             detection->markerDiameters.push_back(diam);
 
-
         }
+
     }
 
-
     return detection;
-
 }
 
 

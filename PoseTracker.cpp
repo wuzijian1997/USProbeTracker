@@ -70,13 +70,13 @@ bool PoseTracker::hasNewPose() {
     return m_hasNewPose;
 }
 
-void PoseTracker::update(std::unique_ptr<std::vector<uint8_t>> irIm, std::unique_ptr<std::vector<uint16_t>> depthMap) {
+void PoseTracker::update(std::unique_ptr<std::vector<uint8_t>> irImLeft, std::unique_ptr<std::vector<uint8_t>> irImRight) {
     // Launch the keypoint search asynchronously and store the future to check later
     //auto fut = std::async(std::launch::async, [this](const Isometry3d& T, std::unique_ptr<std::vector<uint16_t>> ir, std::unique_ptr<std::vector<uint16_t>> depth) { return m_irTracker->findKeypointsWorldFrame(std::move(ir), std::move(depth), T); }, world_T_cam, std::move(irIm), std::move(depthMap));
     //m_detectionQ.try_enqueue(std::move(fut));
 
     // Actually just pass the images to the queue
-    m_detectionQ.emplace(std::move(irIm), std::move(depthMap));
+    m_detectionQ.emplace(std::move(irImLeft), std::move(irImRight));
 }
 
 void PoseTracker::setSmoothing(const float smoothing)
@@ -97,7 +97,7 @@ void PoseTracker::detectionThreadFunction() {
         
         SensorPacket detec(nullptr,nullptr);
         if (m_detectionQ.try_dequeue(detec)) {
-            auto detection = m_irTracker->findKeypointsWorldFrame(std::move(detec.irIm), std::move(detec.depthMap));
+            auto detection = m_irTracker->findKeypointsWorldFrame(std::move(detec.irImLeft), std::move(detec.irImRight));
            
             if (detection->points.empty()) {
                 setRoi(m_roi[0] *MROI_SCALE_X, m_roi[1] * MROI_SCALE_Y, m_roi[2] * MROI_SCALE_X, m_roi[3] * MROI_SCALE_Y, m_roiBuffer);

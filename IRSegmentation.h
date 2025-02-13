@@ -1,5 +1,5 @@
 #pragma once
-
+#define NOMINMAX
 //C++ Includes
 #include <iostream>
 #include <string>
@@ -28,6 +28,7 @@
 #include <mutex>
 
 #include "RealSense.h"
+#include "Utils.h"
 
 //*********2D Image Crop Constants
 const int IMAGE_X_MAXCROP = 848;
@@ -54,8 +55,8 @@ const int BLOB_MIN_DSTANCE_BETWEEN = 2;
 const float KEYPOINTS_MAX_INTENSITY = 1000.0f;
 const double NEAR_CLIP = 0.3f;
 const double FAR_CLIP = 6.0f; //Average Arm Span is 65 cm, we want the tracker to be about the same distance from eyes to hand
-
-
+const double EPIPOLAR_MATCH_Y_THRESHOLD = 5.0f; //Difference in y-direction for two points to be in same epipolar line for stereo triangulation
+const double EPIPOLAR_MATCH_X_THRESHOLD = 30.0f; //Difference in x-direction for two points to be the same in matching epipolar points
 class IRSegmentation
 {
 public:
@@ -79,7 +80,9 @@ public:
 	/// Create an IrTracker object.
 	/// @param width the width of the input image in pixels
 	/// @param height the height of the input image in pixels
-	IRSegmentation(const int width, const int height, double depth_scale,   LogLevel logLevel,bool show_clip_area);
+	IRSegmentation(int width, int height, double depth_scale, LogLevel logLevel, bool show_clip_area,
+		cv::Mat left_camera_mat, cv::Mat left_dist, cv::Mat right_camera_mat, cv::Mat right_dist,
+		cv::Mat R, cv::Mat T, cv::Mat E, cv::Mat F);
 	//~IRSegmentation();
 
 	/// Set the rectangular region of const interest in the image in which to search for the markers.
@@ -111,7 +114,18 @@ public:
 	double m_depth_scale; //depth scale that we use
 	
 	//Finds marker points in the world frame
-	std::shared_ptr<IrDetection> findKeypointsWorldFrame(std::unique_ptr<std::vector<uint8_t>> irIm, std::unique_ptr<std::vector<uint16_t>> depthMap);
+	std::shared_ptr<IrDetection> findKeypointsWorldFrame(std::unique_ptr<std::vector<uint8_t>> irImLeft, std::unique_ptr<std::vector<uint8_t>> irImRight);
+	
+	//Camera Parameters
+	//Camera Matrices and distortion coefficients
+	cv::Mat _left_camera_mat, _left_dist, _right_camera_mat, _right_dist;
+
+	//Rotation (R) and translation (T) between left=> right cameras
+	//Essential matrix (E) and fundamental matrix (F) of stereo calibration
+	cv::Mat _R, _T,_E,_F;
+	cv::Mat _R_left,_R_left_inv, _R_right; //Transforms points from unrectified camera coordinate system to rectified coordinate system for each camera
+	cv::Mat _P_left, _P_right; //Transforms points in rectified camera coordinate system to camera's recitified image
+
 
 private:
 	std::function<void(const std::array<double, 2>&, std::array<double, 2>&)> m_imagePointToCameraUnitPlane;

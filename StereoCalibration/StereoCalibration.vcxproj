@@ -145,11 +145,13 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="..\RealSense.h" />
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="RealSense.cpp" />
+    <ClCompile Include="StereoCalibClass.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\RealSense.cpp" />
-    <ClCompile Include="main.cpp" />
+    <ClInclude Include="RealSense.h" />
+    <ClInclude Include="StereoCalibClass.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
