@@ -37,14 +37,14 @@ const int IMAGE_X_MINCROP = 0;
 const int IMAGE_Y_MINCROP = 0;
 
 //*********Contour Segmentation Constants**************
-const int CONTOUR_BIN_THRESHOLD = 222;
+const int CONTOUR_BIN_THRESHOLD = 100; //222
 const int COUNTOUR_MIN_AREA = 14;
 const int COUNTOUR_MAX_AREA = 250;
 const float CONTOUR_CONVEXITY = 0.68f;
 const float COUNTOUR_CIRCULARITY = 0.54f;
 
 //**********Blob Segmentation Constants****************
-const int BLOB_MIN_THRESHOLD = 215;
+const int BLOB_MIN_THRESHOLD = 100; //215
 const int BLOB_MAX_THRESHOLD = 255;
 const int BLOB_MIN_AREA = 14;
 const int BLOB_MAX_AREA = 250;
@@ -56,7 +56,7 @@ const float KEYPOINTS_MAX_INTENSITY = 1000.0f;
 const double NEAR_CLIP = 0.3f;
 const double FAR_CLIP = 6.0f; //Average Arm Span is 65 cm, we want the tracker to be about the same distance from eyes to hand
 const double EPIPOLAR_MATCH_Y_THRESHOLD = 5.0f; //Difference in y-direction for two points to be in same epipolar line for stereo triangulation
-const double EPIPOLAR_MATCH_X_THRESHOLD = 30.0f; //Difference in x-direction for two points to be the same in matching epipolar points
+const double EPIPOLAR_MATCH_X_THRESHOLD = 40.0f; //Difference in x-direction for two points to be the same in matching epipolar points
 class IRSegmentation
 {
 public:

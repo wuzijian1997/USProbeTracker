@@ -25,8 +25,10 @@ IRSegmentation::IRSegmentation(int width, int height, double depth_scale, LogLev
 
     //Gets the stereo rectification map
     cv::Mat Q;
-    cv::stereoRectify(left_camera_mat, left_dist, right_camera_mat, right_dist, cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT), R, T,
-        _R_left, _R_right, _P_left, _P_right, Q);
+    cv::stereoRectify(_left_camera_mat, _left_dist, _right_camera_mat, _right_dist, cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT), R, T,
+        _R_left, _R_right, _P_left, _P_right, Q,cv::CALIB_ZERO_DISPARITY,-1,cv::Size(),nullptr,nullptr);
+
+    _R_left_inv = _R_left.t(); //Takes the inverse of the rotation matrix moving the camera coordinate to the rectified coordinate system
 
 
     // Default to normalized coordinates (not used)
@@ -154,7 +156,6 @@ std::shared_ptr<IRSegmentation::IrDetection> IRSegmentation::findKeypointsWorldF
     rightROI.width = std::min(width - rightROI.x, rightROI.width);
     rightROI.height = std::min(height - rightROI.y, rightROI.height);
 
-
     //Crops images to the ROIs
     cv::Mat im_left_cropped = imLeft(leftROI).clone();
     cv::Mat im_right_cropped = imRight(rightROI).clone();
@@ -191,6 +192,7 @@ std::shared_ptr<IRSegmentation::IrDetection> IRSegmentation::findKeypointsWorldF
             cv::waitKey(1);
         }
 
+
         //*********Step 1: Get 2D Keypoint Location in Original Left/Right (uncropped) image planes*************
         std::vector<cv::Point2f> left_points, right_points;
         std::vector<int> valid_keypoints_left_indices; //Tracks indices of valid keypoints (ones that aren't ouside the left camera sensor)
@@ -206,6 +208,7 @@ std::shared_ptr<IRSegmentation::IrDetection> IRSegmentation::findKeypointsWorldF
                     LOG << "Actually out of bounds";
                 continue;
             }
+
             valid_keypoints_left_indices.push_back(i);
             left_points.emplace_back(x, y);
         }
@@ -224,11 +227,17 @@ std::shared_ptr<IRSegmentation::IrDetection> IRSegmentation::findKeypointsWorldF
             right_points.emplace_back(x,y);
         }
 
+
+
+
         //******************Step 2: Undistort the keypoints in the left/right images***********************
         //It projects them onto rectified image planes
         std::vector<cv::Point2f> left_undistorted, right_undistorted;
+
         cv::undistortPoints(left_points, left_undistorted, _left_camera_mat, _left_dist,_R_left,_P_left);
         cv::undistortPoints(right_points, right_undistorted, _right_camera_mat, _right_dist,_R_right,_P_right);
+
+
 
         //**********Step 3: Match points between left/right images using epipolar constraints**************
         std::vector<cv::Point2f> left_matched, right_matched;
@@ -248,8 +257,10 @@ std::shared_ptr<IRSegmentation::IrDetection> IRSegmentation::findKeypointsWorldF
             // Iterate over right points
             for (size_t j = 0; j < right_undistorted.size();j++) {
                 cv::Point2f right_point = right_undistorted[j];
+
                 if (!right_used[j] && std::abs(left_point.y - right_point.y) < EPIPOLAR_MATCH_Y_THRESHOLD) { // Check epipolar constraint
                     float distance = std::abs(left_point.x - right_point.x);
+
                     if (distance < min_dist) {
                         min_dist = distance;
                         best_match_idx = j;
@@ -277,7 +288,19 @@ std::shared_ptr<IRSegmentation::IrDetection> IRSegmentation::findKeypointsWorldF
 
         //**********************Step 4: Triangulate the 3D points************************
         cv::Mat left_cam_points4d;
+        // Check if matched points are empty
+        if (left_matched.empty() || right_matched.empty()) {
+            std::cout << "Error: No matched points found. Exiting triangulation"<<std::endl;
+            return detection;  // Exit early
+        }
+
         cv::triangulatePoints(_P_left, _P_right, left_matched, right_matched, left_cam_points4d);
+
+        if (left_cam_points4d.empty()) {
+            std::cout << "No Points Could Be Triangulated" << std::endl;
+            return detection;  // Exit early
+        }
+
 
         cv::Mat left_cam_points3D_rect;
         cv::convertPointsFromHomogeneous(left_cam_points4d.t(), left_cam_points3D_rect);
@@ -287,11 +310,18 @@ std::shared_ptr<IRSegmentation::IrDetection> IRSegmentation::findKeypointsWorldF
         {
             
             //Get current 3D point
-            cv::Mat ptMat_rect = left_cam_points3D_rect.row(i).t();
+            // Extract row and ensure it's a 3x1 column vector
+            cv::Mat ptMat_rect = left_cam_points3D_rect.row(i).t(); // Transpose ensures it's 3x1
+            ptMat_rect = ptMat_rect.reshape(1, 3);  // Ensure it's a single-channel 3x1
 
-            //Transform from rectified left coordinate system to original left camera coordinate system
-            cv::Mat ptMat_original = _R_left_inv * ptMat_rect;
-            //Extract the transformc coordinates
+            // Convert to CV_64F to match _R_left_inv
+            cv::Mat ptMat_rect_64;
+            ptMat_rect.convertTo(ptMat_rect_64, CV_64F);
+
+            // Perform matrix multiplication
+            cv::Mat ptMat_original = _R_left_inv * ptMat_rect_64;
+
+            //Extract the transformed coordinates (in left camera frame)
             double X = ptMat_original.at<double>(0, 0);
             double Y = ptMat_original.at<double>(1, 0);
             double Z = ptMat_original.at<double>(2, 0);
@@ -311,6 +341,7 @@ std::shared_ptr<IRSegmentation::IrDetection> IRSegmentation::findKeypointsWorldF
             double x_left_edge_px = left_points[valid_left_point_indices[i]].x - keypoint_diameter_px / 2;
             double x_right_edge_px = left_points[valid_left_point_indices[i]].x + keypoint_diameter_px / 2;
 
+
             std::vector<cv::Point2f> edge_pixels = {
                 cv::Point2f(x_left_edge_px, left_points[valid_left_point_indices[i]].y),
                  cv::Point2f(x_right_edge_px, left_points[valid_left_point_indices[i]].y)
@@ -323,10 +354,26 @@ std::shared_ptr<IRSegmentation::IrDetection> IRSegmentation::findKeypointsWorldF
             //Convert the two edges to 3D using estimated Z of center of keypoint
             Eigen::Vector3d left_edge_3D(edge_leftcamera[0].x * Z, edge_leftcamera[0].y * Z, Z);
             Eigen::Vector3d right_edge_3D(edge_leftcamera[1].x* Z, edge_leftcamera[1].y* Z, Z);
+
             double diam = (left_edge_3D - right_edge_3D).norm();
 
-            int xInt = static_cast<int>(std::round(left_matched[i].x));
-            int yInt = static_cast<int>(std::round(left_matched[i].y));
+
+
+            //*******************Project the X,Y,Z points onto the left camera plane******************
+            std::vector<cv::Point3f> objectPoints = { cv::Point3f(X, Y, Z) }; // 3D point in left camera coordinate system
+            std::vector<cv::Point2f> projectedPoints; // 2D point in left image plane
+
+            cv::projectPoints(objectPoints,
+                cv::Mat::zeros(3, 1, CV_64F), // No rotation (identity)
+                cv::Mat::zeros(3, 1, CV_64F), // No translation
+                _left_camera_mat,             // Left camera intrinsic matrix
+                _left_dist,                    // Left camera distortion coefficients
+                projectedPoints);
+
+            // The reprojected (u,v) coordinates
+            cv::Point2f uv = projectedPoints[0];
+            int xInt = static_cast<int>(std::round(uv.x));
+            int yInt = static_cast<int>(std::round(uv.y));
 
 
             detection->points.push_back(Eigen::Vector3d(X, Y, Z));
