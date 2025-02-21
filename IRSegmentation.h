@@ -123,16 +123,12 @@ public:
 	double _fxL, _fyL, _cxL, _cyL;
 	double _fxR, _fyR, _cxR, _cyR;
 
-
-
-
 	//Rotation (R) and translation (T) between left=> right cameras
 	//Essential matrix (E) and fundamental matrix (F) of stereo calibration
 	cv::Mat _R, _T,_E,_F;
 	cv::Mat _R_left,_R_left_inv, _R_right; //Transforms points from unrectified camera coordinate system to rectified coordinate system for each camera
 	cv::Mat _P_left, _P_right; //Transforms points in rectified camera coordinate system to camera's recitified image
-	cv::Mat  _P_left_unrectified;
-	cv::Mat  _P_right_unrectified;
+
 	// R and T in eigen
 	Eigen::Matrix3d _R_eigen;
 	Eigen::Vector3d _T_eigen;

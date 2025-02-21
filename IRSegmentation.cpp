@@ -30,20 +30,6 @@ IRSegmentation::IRSegmentation(int width, int height, double depth_scale, LogLev
 
     _R_left_inv = _R_left.t(); //Takes the inverse of the rotation matrix moving the camera coordinate to the rectified coordinate system
 
-    //Gets the projection matrices without rectification
-    // Left camera projection matrix (3x4)
-    _P_left_unrectified = cv::Mat::zeros(3, 4, CV_64F);
-    _left_camera_mat.copyTo(_P_left_unrectified(cv::Rect(0, 0, 3, 3))); // Copy intrinsic matrix
-
-    // Right camera projection matrix (3x4)
-    cv::Mat R_inv = R.t();  // Invert rotation
-    cv::Mat T_inv = -R_inv *T; // Compute new translation
-
-    cv::Mat Rt_inv;
-    cv::hconcat(R_inv, T_inv, Rt_inv); // [R^T | -R^T T]
-
-    _P_right_unrectified = _right_camera_mat * Rt_inv; // K_right * [R^T | -R^T T]
-
 
     //Individual camera parameters
     _fxL = _left_camera_mat.at<double>(0, 0);
@@ -257,37 +243,34 @@ std::shared_ptr<IRSegmentation::IrDetection> IRSegmentation::findKeypointsWorldF
             right_points.emplace_back(x,y);
         }
 
-        //******************Step 2: Undistort the keypoints in the left/right images***********************
-        //Since image planes are closely aligned, we try without rectification for speed purposes
-       
+        //******************Step 2: Undistort the keypoints in the left/right images***********************       
         //It projects them onto rectified image planes
-        /*std::vector<cv::Point2f> left_undistorted, right_undistorted;
+        std::vector<cv::Point2f> left_undistorted, right_undistorted;
 
         cv::undistortPoints(left_points, left_undistorted, _left_camera_mat, _left_dist,_R_left,_P_left);
-        cv::undistortPoints(right_points, right_undistorted, _right_camera_mat, _right_dist,_R_right,_P_right);*/
+        cv::undistortPoints(right_points, right_undistorted, _right_camera_mat, _right_dist,_R_right,_P_right);
 
 
 
         //**********Step 3: Match points between left/right images using epipolar constraints**************
-        //Change "right_points" to "right_undistorted" and "left_points" to "left_undistorted" in this section if using points on rectified  
 
         std::vector<cv::Point2f> left_matched, right_matched;
 
         // Create a boolean vector to track used points in the right image
-        std::vector<bool> right_used(right_points.size(), false);
+        std::vector<bool> right_used(right_undistorted.size(), false);
 
         //Tracks which left points end up being used in left_matched
         std::vector<int> valid_left_point_indices;
 
-        for (size_t i = 0; i < left_points.size(); i++) //Loops for all points in left
+        for (size_t i = 0; i < left_undistorted.size(); i++) //Loops for all points in left
         {
             float min_dist = 1e6; //Inits the minimum distance in the x-direction
             int best_match_idx = -1; //The best match index in the right_undistorted image
-            cv::Point2f left_point = left_points[i];
+            cv::Point2f left_point = left_undistorted[i];
 
             // Iterate over right points
-            for (size_t j = 0; j < right_points.size();j++) {
-                cv::Point2f right_point = right_points[j];
+            for (size_t j = 0; j < right_undistorted.size();j++) {
+                cv::Point2f right_point = right_undistorted[j];
 
                 if (!right_used[j] && std::abs(left_point.y - right_point.y) < EPIPOLAR_MATCH_Y_THRESHOLD) { // Check epipolar constraint
                     float distance = std::abs(left_point.x - right_point.x);
@@ -302,7 +285,7 @@ std::shared_ptr<IRSegmentation::IrDetection> IRSegmentation::findKeypointsWorldF
             if (best_match_idx != -1 && min_dist < EPIPOLAR_MATCH_X_THRESHOLD)
             {
                 left_matched.push_back(left_point);
-                right_matched.push_back(right_points[best_match_idx]);
+                right_matched.push_back(right_undistorted[best_match_idx]);
                 right_used[best_match_idx] = true; // Mark the right point as used
 
                 valid_left_point_indices.push_back(i);
@@ -325,14 +308,7 @@ std::shared_ptr<IRSegmentation::IrDetection> IRSegmentation::findKeypointsWorldF
             std::cout << "Error: No matched points found. Exiting triangulation"<<std::endl;
             return detection;  // Exit early
         }
-
-        //Only include if not using rectification
-        std::vector<cv::Point2f> left_norm, right_norm;
-        cv::undistortPoints(left_matched, left_norm, _left_camera_mat, _left_dist);
-        cv::undistortPoints(right_matched, right_norm, _right_camera_mat, _right_dist);
-
-        //cv::triangulatePoints(_P_left, _P_right, left_matched, right_matched, left_cam_points4d); //For a rectified image
-        cv::triangulatePoints(_P_left_unrectified, _P_right_unrectified, left_matched, right_matched, left_cam_points4d);
+        cv::triangulatePoints(_P_left, _P_right, left_matched, right_matched, left_cam_points4d); //For a rectified image
 
         if (left_cam_points4d.empty()) {
             std::cout << "No Points Could Be Triangulated" << std::endl;
@@ -342,33 +318,26 @@ std::shared_ptr<IRSegmentation::IrDetection> IRSegmentation::findKeypointsWorldF
 
         cv::Mat left_cam_points3D_rect;
         cv::convertPointsFromHomogeneous(left_cam_points4d.t(), left_cam_points3D_rect);
-        //cv::Mat left_cam_points3D = left_cam_points4d.rowRange(0, 3) / left_cam_points4d.row(3);
 
         //****Step5: transform to left camera frame and find blob diameter******
         for (int i = 0; i < left_cam_points3D_rect.rows; i++)
         {
-            
             //Get current 3D point
-            // Extract row and ensure it's a 3x1 column vector
+            //Extract row and ensure it's a 3x1 column vector
             cv::Mat ptMat_rect = left_cam_points3D_rect.row(i).t(); // Transpose ensures it's 3x1
-            //ptMat_rect = ptMat_rect.reshape(1, 3);  // Ensure it's a single-channel 3x1
+            ptMat_rect = ptMat_rect.reshape(1, 3);  // Ensure it's a single-channel 3x1
 
-            // Convert to CV_64F to match _R_left_inv
-            //cv::Mat ptMat_rect_64;
-            //ptMat_rect.convertTo(ptMat_rect_64, CV_64F);
+             //Convert to CV_64F to match _R_left_inv
+            cv::Mat ptMat_rect_64;
+            ptMat_rect.convertTo(ptMat_rect_64, CV_64F);
 
-            // Perform matrix multiplication
-            //cv::Mat ptMat_original = _R_left_inv * ptMat_rect_64;
+             //Perform matrix multiplication
+            cv::Mat ptMat_original = _R_left_inv * ptMat_rect_64;
 
             //Extract the transformed coordinates (in left camera frame) => if rectified
-            /*double X = ptMat_original.at<double>(0, 0);
+            double X = ptMat_original.at<double>(0, 0);
             double Y = ptMat_original.at<double>(1, 0);
-            double Z = ptMat_original.at<double>(2, 0);*/
-
-            double X = ptMat_rect.at<double>(0, 0);
-            double Y = ptMat_rect.at<double>(1, 0);
-            double Z = ptMat_rect.at<double>(2, 0);
-            std::cout << "Z: " << Z<<std::endl;
+            double Z = ptMat_original.at<double>(2, 0);
 
             //Check that the point is within the clip area
             if (Z<m_depthNearClip || Z>m_depthFarClip) {
