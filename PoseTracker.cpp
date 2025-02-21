@@ -41,6 +41,7 @@ PoseTracker::PoseTracker(std::shared_ptr<IRSegmentation> irTracker, std::vector<
 
 PoseTracker::~PoseTracker() {
     m_runDetectionThread = false;
+    m_hasNewPose = false;
 
     if (m_detectionThread)
         m_detectionThread->join();
@@ -51,14 +52,18 @@ PoseTracker::~PoseTracker() {
 }
 
 Eigen::Matrix4d PoseTracker::getPose() {
-    std::scoped_lock<std::mutex> lock(m_poseMutex);
-    m_hasNewPose = false;
+    {
+        std::lock_guard<std::mutex> lock(m_poseMutex);
+        m_hasNewPose = false;
+    }
     return m_objectPose.pose.matrix();
 }
 
 PoseTracker::IRPose PoseTracker::getLastMeasurement() {
-    std::scoped_lock<std::mutex> lock(m_poseMutex);
-    m_hasNewPose = false;
+    {
+        std::lock_guard<std::mutex> lock(m_poseMutex);
+        m_hasNewPose = false;
+    }
     return m_objectPose;
 }
 
@@ -94,23 +99,24 @@ void PoseTracker::detectionThreadFunction() {
     using namespace std::chrono_literals;
     while (m_runDetectionThread) {
         // Try to pop images from the queue
-        
         SensorPacket detec(nullptr,nullptr);
         if (m_detectionQ.try_dequeue(detec)) {
             auto detection = m_irTracker->findKeypointsWorldFrame(std::move(detec.irImLeft), std::move(detec.irImRight));
            
             if (detection->points.empty()) {
                 setRoi(m_roi[0] *MROI_SCALE_X, m_roi[1] * MROI_SCALE_Y, m_roi[2] * MROI_SCALE_X, m_roi[3] * MROI_SCALE_Y, m_roiBuffer);
-                std::this_thread::sleep_for(5ms);
+                std::this_thread::sleep_for(1ms); //Optimization: Change this time
                 continue;
             }
-
+            
             if (preprocessMarkerDetection(detection))
+            {               
                 processMarkerDetection(detection);
+            }
         }
         else {
             using namespace std::chrono_literals;
-            std::this_thread::sleep_for(5ms);
+            std::this_thread::sleep_for(1ms); //Optimization: Change this time
         }
     }
 }
@@ -124,7 +130,10 @@ bool PoseTracker::preprocessMarkerDetection(std::shared_ptr<IRSegmentation::IrDe
     size_t i = 0;
     size_t init = detection->points.size();
     while (i < init) {
-        if (absval(detection->points[i][2]) > OUTLIER_FAR_CLIP || absval(detection->points[i][2]) < OUTLIER_NEAR_CLIP) {// || absval(detection->markerDiameters[i] - m_markerDiameter) > m_markerDiameter / 2) {
+
+        //Optimization: Can change if statement to check for diameter bounds
+
+        if (absval(detection->points[i][2]) > OUTLIER_FAR_CLIP || absval(detection->points[i][2]) < OUTLIER_NEAR_CLIP || absval(absval(detection->markerDiameters[i]) - m_markerDiameter) > MARKER_DIAMETER_ERROR_THRESHOLD) {
             if (m_logLevel == IRSegmentation::LogLevel::VeryVerbose)
                 LOG << "Removing outlier point [" << detection->points[i][0] << ", " << detection->points[i][1] << ", " << detection->points[i][2] << "] with diameter " << detection->markerDiameters[i];
             detection->points.erase(detection->points.begin() + i);
@@ -278,8 +287,8 @@ void PoseTracker::processMarkerDetection(std::shared_ptr<IRSegmentation::IrDetec
         if (m_logLevel == IRSegmentation::LogLevel::Verbose)
             LOG << "GOT POSE";
         m_lastPoseTime = time();
-        setPoseFromResult(detection, idxs);
-        m_hasNewPose = true;
+        setPoseFromResult(detection, idxs);  
+        
         return;
     }
     if (m_logLevel == IRSegmentation::LogLevel::Verbose)
@@ -301,10 +310,15 @@ void PoseTracker::setPoseFromResult(std::shared_ptr<IRSegmentation::IrDetection>
     m_lastPos = m_lastPos * m_smoothing + p.translation() * (1 - m_smoothing);
 
     // Set the current pose in a thread-safe way
-    std::scoped_lock<std::mutex> lock(m_poseMutex);
-    m_objectPose.pose = m_objectPose.pose.fromPositionOrientationScale(m_lastPos, m_lastRot, Eigen::Vector3d(1, 1, 1));
-    m_objectPose.imageCoords = std::vector<Eigen::Vector2i>(mes->imCoords);
-    m_objectPose.markerPositions = std::vector<Eigen::Vector3d>(mes->points);
+    {
+        std::lock_guard<std::mutex> lock(m_poseMutex);
+        m_objectPose.pose = m_objectPose.pose.fromPositionOrientationScale(m_lastPos, m_lastRot, Eigen::Vector3d(1, 1, 1));
+        m_objectPose.imageCoords = std::vector<Eigen::Vector2i>(mes->imCoords);
+        m_objectPose.markerPositions = std::vector<Eigen::Vector3d>(mes->points);
+        m_hasNewPose = true;
+        std::cout << "New Pose" << std::endl;
+    }
+    m_pose_here_CV.notify_one();
 
     // Also update the search area
     int minX = m_width; int minY = m_height; int maxX = 0; int maxY = 0;

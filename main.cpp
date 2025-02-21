@@ -33,14 +33,16 @@ bool show_depth = false; //shows the depth map
 
 //Semi-Permanent Setup Parameters
 int realsense_timeout = 35; //Realsense Frame Grabber Returns False if waiting more than 35 ms
-float pose_markerDiameter = 0.011; //IR Marker diameter in meters
+
+float pose_markerDiameter = 0.011f; //IR Marker diameter in meters
 bool pose_filterJumps = true; //Filter jumps in pose tracking 
 float pose_jumpThresholdMetres = 0.3;
 int pose_numFramesUntilSet = 4;
 float pose_smoothing = 0.0f; //We are not smoothing the pose
-int forcesensor_timeout = 2; //We wait for 2 ms, force grabber returns NaN's if waiting more than this
 int posetracker_timeout = 10; //We wait for 2ms for the pose tracker to update pose
-int i;
+
+int forcesensor_timeout = 2; //We wait for 2 ms, force grabber returns NaN's if waiting more than this
+
 int us_timeout = 2; //We wait for 2 ms for us frames
 
 std::chrono::milliseconds pose_tracker_timeout_duration(posetracker_timeout/10);
@@ -49,6 +51,7 @@ std::chrono::milliseconds pose_tracker_timeout_duration(posetracker_timeout/10);
 std::chrono::steady_clock::time_point last_time;
 std::chrono::steady_clock::time_point curr_time;
 
+int i;
 int main()
 {
 	//*******************Init RealSense Camera Parameters********************
@@ -186,7 +189,7 @@ int main()
 			curr_time = std::chrono::steady_clock::now();
 			auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_time - last_time).count();
 			
-			//!!!Data Collection Syncrhonized to RealSense!!!
+			//!!!Data Collection Synchronized to RealSense!!!
 			if (is_realsense_data_returned) //Enters if depth/ir frames arrive
 			{
 				//***********************RealSense Data Conversions******************
@@ -208,33 +211,33 @@ int main()
 				auto depth_ptr = std::make_unique<std::vector<uint16_t>>(std::move(depth_vector));*/
 				//Converts IR to OpenCV representation for display
 
-				//if (show_ir || show_clip_area_andkeypoints || show_pose)
-				//{
-				//	ir_mat_left = cv::Mat(cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT), CV_8UC1, (void*)realsense_data.irLeftFrame.get_data());
-				//	ir_mat_right = cv::Mat(cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT), CV_8UC1, (void*)realsense_data.irRightFrame.get_data());
-				//}
+				if (show_ir || show_clip_area_andkeypoints || show_pose)
+				{
+					ir_mat_left = cv::Mat(cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT), CV_8UC1, (void*)realsense_data.irLeftFrame.get_data());
+					ir_mat_right = cv::Mat(cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT), CV_8UC1, (void*)realsense_data.irRightFrame.get_data());
+				}
 
 				//****************Testing findkeypointsworldframe***************
-				ir_mat_left = cv::Mat(cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT), CV_8UC1, (void*)realsense_data.irLeftFrame.get_data());
-				//ir_mat_right = cv::Mat(cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT), CV_8UC1, (void*)realsense_data.irRightFrame.get_data());
-				last_time = std::chrono::steady_clock::now();
-				auto detection = ir_segmenter->findKeypointsWorldFrame(std::move(ir_ptr_left), std::move(ir_ptr_right));
-				curr_time = std::chrono::steady_clock::now();
-				auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_time - last_time).count();
-				std::cout << "Segmentation dt:" << elapsed_ms << std::endl;
-				
-				for (const auto& coord : detection->imCoords) {
-					// draw the point on the image (circle with radius 3, red color)
-					cv::circle(ir_mat_left, cv::Point(coord[0], coord[1]), 3, cv::Scalar(0, 0, 255), -1);
-				}
-				
-				cv::imshow("left ir", ir_mat_left);
-				char c = cv::waitKey(1);	//grabs key press, if q we close
-				if (c == 'q')
-				{
-					break;
-				
-				}
+				//ir_mat_left = cv::Mat(cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT), CV_8UC1, (void*)realsense_data.irLeftFrame.get_data());
+				////ir_mat_right = cv::Mat(cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT), CV_8UC1, (void*)realsense_data.irRightFrame.get_data());
+				//last_time = std::chrono::steady_clock::now();
+				//auto detection = ir_segmenter->findKeypointsWorldFrame(std::move(ir_ptr_left), std::move(ir_ptr_right));
+				//curr_time = std::chrono::steady_clock::now();
+				//auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_time - last_time).count();
+				//std::cout << "Segmentation dt:" << elapsed_ms << std::endl;
+				//
+				//for (const auto& coord : detection->imCoords) {
+				//	// draw the point on the image (circle with radius 3, red color)
+				//	cv::circle(ir_mat_left, cv::Point(coord[0], coord[1]), 3, cv::Scalar(0, 0, 255), -1);
+				//}
+				//
+				//cv::imshow("left ir", ir_mat_left);
+				//char c = cv::waitKey(1);	//grabs key press, if q we close
+				//if (c == 'q')
+				//{
+				//	break;
+				//
+				//}
 				
 				
 				
@@ -243,36 +246,50 @@ int main()
 
 				//***********************Get Pose***********************
 				//Update the pose tracker with new realsense frames
-				//last_time = std::chrono::steady_clock::now();
-				//poseTracker.update(std::move(ir_ptr_left), std::move(ir_ptr_right));
-				//curr_time = std::chrono::steady_clock::now();
-				//elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_time - last_time).count();
-				//std::cout << "Update Pose dt:" << elapsed_ms << std::endl;
 
+				//Updates the pose tracker
+				poseTracker.update(std::move(ir_ptr_left), std::move(ir_ptr_right));
+
+				
+				//Optimization: Put this under where we get force/US, gives pose calc thread time to catch up
+				//Checks if new pose arrived on thread (slow part)
 				//for (i = 0; i < 10; i++) {
-				//	if (poseTracker.hasNewPose()) break; //Breaks if new pose is calculated
+				//	auto loop_time = std::chrono::steady_clock::now();
+				//	auto elapsed_loop = std::chrono::duration_cast<std::chrono::milliseconds>(loop_time - last_time).count();
+				//	std::cout << "Polling Iteration " << i << ": " << elapsed_loop << " ms" << std::endl;
+				//	
+				//	if (poseTracker.hasNewPose())
+				//	{
+				//		std::cout << "New Pose Detected at " << elapsed_loop << " ms" << std::endl;
+				//		break; //Breaks if new pose is calculated
+				//	}
 				//	using namespace std::chrono_literals;
-				//	std::this_thread::sleep_for(10ms); //Sleeps main to wait for new pose
+				//	//Optimization: Change this ms value
+				//	std::this_thread::sleep_for(1ms); //Sleeps main to wait for new pose
 				//}
-				//curr_time = std::chrono::steady_clock::now();
-				//elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_time - last_time).count();
-				//std::cout << "Has Pose dt:" << elapsed_ms << std::endl;
+				last_time = std::chrono::steady_clock::now();
+				std::unique_lock<std::mutex> lock{ poseTracker.m_poseMutex };
+				bool poseReceived = poseTracker.m_pose_here_CV.wait_for(lock, std::chrono::milliseconds(20), [&] {return poseTracker.hasNewPose(); });
+				lock.unlock();
 
-				////Check if pose is computed
-				//if (i == 10) {
-				//	//Failed to compute pose, make the matrix all "-1's" to indicate it is false			
-				//	cam_T_us << -1, -1, -1, -1,
-				//		-1, -1, -1, -1,
-				//		-1, -1, -1, -1,
-				//		-1, -1, -1, -1;
-				//}
-				//else {
-				//	//Computes Pose
-				//	cam_T_us = poseTracker.getPose();
-				//}
-				//curr_time = std::chrono::steady_clock::now();
-				//elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_time - last_time).count();
-				//std::cout << "Pose dt:" << elapsed_ms << std::endl;
+				curr_time = std::chrono::steady_clock::now();
+				elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_time - last_time).count();
+				std::cout << "Hase Pose dt:" << elapsed_ms << std::endl;
+				
+				//Check if pose is computed
+				if (!poseReceived) {
+					//Failed to compute pose, make the matrix all "-1's" to indicate it is false			
+					std::cout << "Failed Pose Computation" << std::endl;
+					cam_T_us << -1, -1, -1, -1,
+						-1, -1, -1, -1,
+						-1, -1, -1, -1,
+						-1, -1, -1, -1;
+				}
+				else {
+					//Computes Pose
+					cam_T_us = poseTracker.getPose();
+				}
+				
 
 				//************************Get Force/IMU************************
 				//last_time = std::chrono::steady_clock::now();
@@ -313,83 +330,83 @@ int main()
 				////Writes pose/force to scandata_datetime.csv
 				//datalogger.writeCSVRow(elapsed_seconds, realsense_frame_count, us_frame_count, cam_T_us, raw_force_string, force_string_xyz, temp_imu_string);
 				////Writes the depth frame to depthframe_datetime.mp4
-				//cv::Mat depth_mat(cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT), CV_16UC1, (void*)realsense_data.depthFrame.get_data(), cv::Mat::AUTO_STEP);
+				cv::Mat depth_mat(cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT), CV_16UC1, (void*)realsense_data.depthFrame.get_data(), cv::Mat::AUTO_STEP);
 				////datalogger.writeDepthFrame(depth_mat);
 
 				//curr_time = std::chrono::steady_clock::now();
 				//elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_time - last_time).count();
 
 				//************************Displaying Frames********************
-				//if (show_pose) //Shows the pose
-				//{
-				//		cv::Mat cvT(4, 4, CV_64F);
-				//		for (int i = 0; i < 4; ++i) {
-				//			for (int j = 0; j < 4; ++j) {
-				//				cvT.at<double>(i, j) = cam_T_us(i, j);
-				//			}
-				//		}
+				if (show_pose) //Shows the pose
+				{
+						cv::Mat cvT(4, 4, CV_64F);
+						for (int i = 0; i < 4; ++i) {
+							for (int j = 0; j < 4; ++j) {
+								cvT.at<double>(i, j) = cam_T_us(i, j);
+							}
+						}
 
-				//		//Displaying image
-				//		rotation = cvT(cv::Range(0, 3), cv::Range(0, 3));
-				//		translation = cvT(cv::Range(0, 3), cv::Range(3, 4));
-				//		cv::Mat outputImage;
-				//		cv::cvtColor(ir_mat_left, outputImage, cv::COLOR_GRAY2BGR);
-				//		cv::Rodrigues(rotation, rvec);
-				//		cv::drawFrameAxes(outputImage, left_camera_matrix, left_dist_coeffs, rvec, translation, 0.1, 3);
-				//		cv::imshow("Pose Visualization", outputImage);
-				//		if (!(show_ir || show_clip_area_andkeypoints))
-				//		{
-				//			char c = cv::waitKey(1);	//grabs key press, if q we close
-				//			if (c == 'q')
-				//			{
-				//				break;
+						//Displaying image
+						rotation = cvT(cv::Range(0, 3), cv::Range(0, 3));
+						translation = cvT(cv::Range(0, 3), cv::Range(3, 4));
+						cv::Mat outputImage;
+						cv::cvtColor(ir_mat_left, outputImage, cv::COLOR_GRAY2BGR);
+						cv::Rodrigues(rotation, rvec);
+						cv::drawFrameAxes(outputImage, left_camera_matrix, left_dist_coeffs, rvec, translation, 0.1, 3);
+						cv::imshow("Pose Visualization", outputImage);
+						if (!(show_ir || show_clip_area_andkeypoints))
+						{
+							char c = cv::waitKey(1);	//grabs key press, if q we close
+							if (c == 'q')
+							{
+								break;
 
-				//			}
+							}
 
-				//		}
-				//}
+						}
+				}
 
-				//if (show_clip_area_andkeypoints) //Shows the keypoints
-				//{
-				//	for (const auto& coord : poseTracker.m_objectPose.imageCoords) {
-				//			// draw the point on the image (circle with radius 3, red color)
-				//			cv::circle(ir_mat_left, cv::Point(coord[0], coord[1]), 3, cv::Scalar(0, 0, 255), -1);
-				//	}
-				//}
-				//if (show_ir || show_clip_area_andkeypoints) //Shows the ir image
-				//{
+				if (show_clip_area_andkeypoints) //Shows the keypoints
+				{
+					for (const auto& coord : poseTracker.m_objectPose.imageCoords) {
+							// draw the point on the image (circle with radius 3, red color)
+							cv::circle(ir_mat_left, cv::Point(coord[0], coord[1]), 3, cv::Scalar(0, 0, 255), -1);
+					}
+				}
+				if (show_ir || show_clip_area_andkeypoints) //Shows the ir image
+				{
 
-				//	cv::imshow("IR Left", ir_mat_left);
-				//	char c = cv::waitKey(1);	//grabs key press, if q we close
-				//	if (c == 'q')
-				//	{
-				//		break;
+					cv::imshow("IR Left", ir_mat_left);
+					char c = cv::waitKey(1);	//grabs key press, if q we close
+					if (c == 'q')
+					{
+						break;
 
-				//	}
-				//}
+					}
+				}
 
-				//if (show_depth) //Shows the depth frame from the realsense
-				//{					
-				//	cv::minMaxIdx(depth_mat, &minVal, &maxVal); //Finds the min and max values 
-				//	depth_mat.convertTo(depth_normalized, CV_8UC1, 255.0 / maxVal); //Normalizes from 0-255					
-				//	cv::applyColorMap(depth_normalized, depth_colormap, cv::COLORMAP_JET); //Applies the colour map
+				if (show_depth) //Shows the depth frame from the realsense
+				{					
+					cv::minMaxIdx(depth_mat, &minVal, &maxVal); //Finds the min and max values 
+					depth_mat.convertTo(depth_normalized, CV_8UC1, 255.0 / maxVal); //Normalizes from 0-255					
+					cv::applyColorMap(depth_normalized, depth_colormap, cv::COLORMAP_JET); //Applies the colour map
 
-				//	// Display the heatmap
-				//	cv::imshow("Depth Heatmap", depth_colormap);
+					// Display the heatmap
+					cv::imshow("Depth Heatmap", depth_colormap);
 
-				//	if (!(show_ir || show_clip_area_andkeypoints||show_pose))
-				//	{
-				//		char c = cv::waitKey(1);	//grabs key press, if q we close
-				//		if (c == 'q')
-				//		{
-				//			break;
+					if (!(show_ir || show_clip_area_andkeypoints||show_pose))
+					{
+						char c = cv::waitKey(1);	//grabs key press, if q we close
+						if (c == 'q')
+						{
+							break;
 
-				//		}
+						}
 
-				//	}
+					}
 
 
-				//}
+				}
 
 			}
 		}

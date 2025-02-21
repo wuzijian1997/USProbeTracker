@@ -2,6 +2,7 @@
 #include "IRSegmentation.h"
 #include "readerwriterqueue.h"
 #include <future>
+#include <condition_variable>
 
 //*************Pose Tracking Constants************
 const float MROI_SCALE_X = 1.0f; // / 1.25f;
@@ -10,6 +11,8 @@ const float MROI_SCALE_Y = 1.0f; // / 1.25f;
 //Outlier Removal (near/far clip)
 const float OUTLIER_NEAR_CLIP = NEAR_CLIP;
 const float OUTLIER_FAR_CLIP = FAR_CLIP;
+
+const float MARKER_DIAMETER_ERROR_THRESHOLD = 0.006f; //Allowable difference between actual marker diam and measured
 
 class PoseTracker
 {
@@ -54,6 +57,21 @@ public:
 	/// @param numFramesUntilSet if a point jumped but is still there after this many frames, the new position is probably correct so we accept it
 	void setJumpSettings(bool filterJumps, const float jumpThresholdMetres, const int numFramesUntilSet);
 
+
+
+	//***********Threading Vars**********:
+	std::mutex m_poseMutex;
+
+	/// Thread the continuously looks for new detections in the images and then handles the further processing
+	std::shared_ptr<std::thread> m_detectionThread;
+
+	/// Atomic flag to control the detection thread
+	std::atomic<bool> m_runDetectionThread = true;
+	std::atomic<bool> m_hasNewPose = false;
+
+	// Condition Variable to notify main when new pose is available
+	std::condition_variable m_pose_here_CV;
+
 	/// The current computed object pose
 	//Isometry3d m_objectPose = Isometry3d::Identity();
 	IRPose m_objectPose;
@@ -75,27 +93,15 @@ private:
 	std::vector<Eigen::Vector3d> m_markerGeom;
 	Eigen::MatrixXd m_markerDiffs;
 
-	/// Mutex to synchronize calls to the resulting pose matrix
-	std::mutex m_poseMutex;
-	std::mutex m_camMutex;
-
-
-
 	/// Lockless, concurrent queue to pass images to IR detection thread
-	moodycamel::ReaderWriterQueue<SensorPacket> m_detectionQ;
-
-	/// Thread the continuously looks for new detections in the images and then handles the further processing
-	std::shared_ptr<std::thread> m_detectionThread;
-
-	/// Atomic flag to control the detection thread
-	std::atomic<bool> m_runDetectionThread = true;
+	moodycamel::ReaderWriterQueue<SensorPacket> m_detectionQ;		
 
 	/// Some things for the specific tracking implementation
 	double m_matchThreshold = 0.008;
 	float m_maxPointDistance = 0;
-	float m_markerDiameter = 0.011; // metres
+	float m_markerDiameter = 0.011f; // metres
 	int m_voteThreshold = 1;
-	std::atomic<bool> m_hasNewPose = false;
+	
 	uint64_t m_lastPoseTime = 0;
 	bool m_extrapolate = false;
 	int m_nPoints;
