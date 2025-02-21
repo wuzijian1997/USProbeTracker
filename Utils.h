@@ -14,10 +14,5 @@ std::string eigenForceToStringForce(Eigen::Vector3d& force_xyz);
 Eigen::MatrixXd readCSVToEigenMatrix(const std::string& file_path, int rows, int cols);
 std::string EigenMatrixToString(Eigen::MatrixXd& matrix);
 std::string getDatetimeWithMilliseconds();
-//Transforms a point from the left camera to the right camera
-cv::Rect transformROIToRight(const cv::Rect& left_ROI, const cv::Mat& left_mat,
-	const cv::Mat& right_mat, const cv::Mat& R, const cv::Mat& T);
-
-cv::Point2f transformPointToRight(cv::Point2f leftPoint, float assumedDepth,
-	const cv::Mat& cameraMatrixL, const cv::Mat& cameraMatrixR,
-	const cv::Mat& R, const cv::Mat& T);
+Eigen::Matrix3d convertCVMatToEigen_3b3(cv::Mat R_mat);
+Eigen::Vector3d convertCVMatToEigen_1b3(cv::Mat T_mat);

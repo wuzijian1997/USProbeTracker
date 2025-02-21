@@ -138,60 +138,20 @@ std::string getDatetimeWithMilliseconds() {
 }
 
 
-cv::Rect transformROIToRight(const cv::Rect& left_ROI, const cv::Mat& left_mat,
-	const cv::Mat& right_mat,const cv::Mat& R, const cv::Mat& T)
+Eigen::Matrix3d convertCVMatToEigen_3b3(cv::Mat R_mat)
 {
-	float assumed_depth = 1.25f; //Assume a fixed distance so we can find a point along the epipolar line
-
-	//Corners of the ROI in the left image
-	cv::Point2f topLeft(left_ROI.x, left_ROI.y);
-	cv::Point2f bottomRight(left_ROI.x + left_ROI.width, left_ROI.y + left_ROI.height);
-
-	// Transform each corner to right image
-	cv::Point2f topLeftR = transformPointToRight(topLeft, assumed_depth, left_mat, right_mat, R, T);
-	cv::Point2f bottomRightR = transformPointToRight(bottomRight, assumed_depth, left_mat, right_mat, R, T);
-
-	// Create the corresponding ROI in the right image
-	cv::Rect right_ROI(topLeftR.x, topLeftR.y,
-		bottomRightR.x - topLeftR.x, bottomRightR.y - topLeftR.y);
-
-	return right_ROI;
-
+	Eigen::Matrix3d _R_eigen;
+	for (int i = 0; i < 3; ++i)
+		for (int j = 0; j < 3; ++j)
+			_R_eigen(i, j) = R_mat.at<double>(i, j);
+	return _R_eigen;
 }
 
-cv::Point2f transformPointToRight(cv::Point2f left_point, float assumed_depth,
-	const cv::Mat& left_mat, const cv::Mat& right_mat,
-	const cv::Mat& R, const cv::Mat& T) {
-	// Extract focal lengths and principal points
-	double fxL = left_mat.at<double>(0, 0);
-	double fyL = left_mat.at<double>(1, 1);
-	double cxL = left_mat.at<double>(0, 2);
-	double cyL = left_mat.at<double>(1, 2);
+Eigen::Vector3d convertCVMatToEigen_1b3(cv::Mat T_mat)
+{
+	Eigen::Vector3d _T_eigen;
+	for (int i = 0; i < 3; ++i)
+		_T_eigen(i) = T_mat.at<double>(i, 0);
+	return _T_eigen;
 
-	double fxR = right_mat.at<double>(0, 0);
-	double fyR = right_mat.at<double>(1, 1);
-	double cxR = right_mat.at<double>(0, 2);
-	double cyR = right_mat.at<double>(1, 2);
-
-	// Step 1: Convert 2D point to normalized camera coordinates in the left camera
-	double X_lc = ((left_point.x - cxL) * assumed_depth)/ fxL;
-	double Y_lc = (left_point.y - cyL) * assumed_depth / fyL;
-	double Z_lc = assumed_depth;
-
-	// Create 3D homogeneous point in left camera coordinates
-	cv::Mat T_lc = (cv::Mat_<double>(3, 1) << X_lc, Y_lc, Z_lc);
-
-	// Step 2: Transform the point to the right camera coordinate system
-	cv::Mat T_rc = R * T_lc + T; // Apply stereo transformation
-
-	double X_rc = T_rc.at<double>(0, 0);
-	double Y_rc = T_rc.at<double>(1, 0);
-	double Z_rc = T_rc.at<double>(2, 0);
-
-	// Step 3: Project the transformed point to the right image using right camera intrinsics
-	double u_right = fxR * (X_rc / Z_rc) + cxR;
-	double v_right = fyR * (Y_rc / Z_rc) + cyR;
-
-	return cv::Point2f(u_right, v_right);
 }
-

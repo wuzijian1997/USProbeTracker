@@ -54,7 +54,7 @@ const int BLOB_MIN_DSTANCE_BETWEEN = 2;
 //*******Find Keypoints Constants***************
 const float KEYPOINTS_MAX_INTENSITY = 1000.0f;
 const double NEAR_CLIP = 0.3f;
-const double FAR_CLIP = 1.7f; //Average Arm Span is 65 cm, we want the tracker to be about the same distance from eyes to hand
+const double FAR_CLIP = 6.0f; //Average Arm Span is 65 cm, we want the tracker to be about the same distance from eyes to hand
 const double EPIPOLAR_MATCH_Y_THRESHOLD = 5.0f; //Difference in y-direction for two points to be in same epipolar line for stereo triangulation
 const double EPIPOLAR_MATCH_X_THRESHOLD = 40.0f; //Difference in x-direction for two points to be the same in matching epipolar points
 class IRSegmentation
@@ -116,36 +116,22 @@ public:
 	//Finds marker points in the world frame
 	std::shared_ptr<IrDetection> findKeypointsWorldFrame(std::unique_ptr<std::vector<uint8_t>> irImLeft, std::unique_ptr<std::vector<uint8_t>> irImRight);
 	
-	//*************Camera Parameters***************
+	//Camera Parameters
 	//Camera Matrices and distortion coefficients
 	cv::Mat _left_camera_mat, _left_dist, _right_camera_mat, _right_dist;
-	//Individual camera params
-	double _fxL, _fyL, _cxL, _cyL;
-	double _fxR, _fyR, _cxR, _cyR;
-
-
-
 
 	//Rotation (R) and translation (T) between left=> right cameras
 	//Essential matrix (E) and fundamental matrix (F) of stereo calibration
 	cv::Mat _R, _T,_E,_F;
 	cv::Mat _R_left,_R_left_inv, _R_right; //Transforms points from unrectified camera coordinate system to rectified coordinate system for each camera
 	cv::Mat _P_left, _P_right; //Transforms points in rectified camera coordinate system to camera's recitified image
-	cv::Mat  _P_left_unrectified;
-	cv::Mat  _P_right_unrectified;
-	// R and T in eigen
-	Eigen::Matrix3d _R_eigen;
-	Eigen::Vector3d _T_eigen;
+
 
 private:
 	std::function<void(const std::array<double, 2>&, std::array<double, 2>&)> m_imagePointToCameraUnitPlane;
 	// Marker Segmentation Methods
 	bool blobDetect(cv::Mat& im, std::vector<cv::KeyPoint>& keypoints);
 	bool contourDetect(cv::Mat& im, std::vector<cv::KeyPoint>& keypoints);
-
-	//ROI Conversions
-	void transformROIToRight(cv::Rect& left_ROI, cv::Rect& right_ROI);
-	cv::Point2f transformPointToRight(int left_point_x, int left_point_y, float assumed_depth);
 
 	// Debugging
 	LogLevel m_logLevel;
@@ -166,7 +152,6 @@ private:
 	int m_yMaxCrop = IMAGE_Y_MAXCROP - 1;
 	int m_xMinCrop = IMAGE_X_MINCROP;
 	int m_yMinCrop = IMAGE_Y_MINCROP;
-	cv::Rect _leftROI, _rightROI;
 
 	// Input image settings
 	int m_imWidth = REALSENSE_WIDTH;

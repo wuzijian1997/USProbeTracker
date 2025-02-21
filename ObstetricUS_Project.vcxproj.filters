@@ -33,13 +33,13 @@
     <ClCompile Include="RealSense.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="IRSegmentation.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="Utils.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Datalogger.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="IRSegmentation.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -71,13 +71,13 @@
     <ClInclude Include="RealSense.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="IRSegmentation.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Utils.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Datalogger.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="IRSegmentation.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
