@@ -39,13 +39,11 @@ bool pose_filterJumps = true; //Filter jumps in pose tracking
 float pose_jumpThresholdMetres = 0.3;
 int pose_numFramesUntilSet = 4;
 float pose_smoothing = 0.0f; //We are not smoothing the pose
-int posetracker_timeout = 10; //We wait for 2ms for the pose tracker to update pose
+int posetracker_timeout = 5; //We wait for 5ms for the pose tracker to update pose
 
 int forcesensor_timeout = 2; //We wait for 2 ms, force grabber returns NaN's if waiting more than this
 
 int us_timeout = 2; //We wait for 2 ms for us frames
-
-std::chrono::milliseconds pose_tracker_timeout_duration(posetracker_timeout/10);
 
 //****Variables for Tracking Time******
 std::chrono::steady_clock::time_point last_time;
@@ -138,22 +136,23 @@ int main()
 		poseTracker.setJumpSettings(pose_filterJumps, pose_jumpThresholdMetres, pose_numFramesUntilSet);
 		poseTracker.setSmoothing(pose_smoothing);
 
+
 		//************************Init the Force Sensor************************
-		//ShellSensorReader shellReader(SHELLSENSOR_PORTNAME, SHELLSENSOR_BAUDRATE, forcesensor_timeout); //Sets the baud rate, timeout is wait time thread before returning NaN's
-		////Initializes the force sensor, and checks if the port is connected
-		////Starts the force sensor thread
-		//if (!shellReader.initialize())
-		//{
-		//	std::cout << "Failed to Initialize Force Sensor Serial Stream" << std::endl;
-		//	return 0;
-		//}
-		//
-		//Eigen::MatrixXd force_calibration_mat = readCSVToEigenMatrix("Resources/calmat.csv", 3, 13); //Read in force calibration matrix		
-		//Eigen::Vector3d force_zeroing_offset(0.0, 0.0, 0.0); //Zeroing is set to zeros for now		
-		//std::string raw_force_string, temp_imu_string, force_string_xyz; //String that we read force readings into
+		ShellSensorReader shellReader(SHELLSENSOR_PORTNAME, SHELLSENSOR_BAUDRATE, forcesensor_timeout); //Sets the baud rate, timeout is wait time thread before returning NaN's
+		//Initializes the force sensor, and checks if the port is connected
+		//Starts the force sensor thread
+		if (!shellReader.initialize())
+		{
+			std::cout << "Failed to Initialize Force Sensor Serial Stream" << std::endl;
+			return 0;
+		}		
+		Eigen::MatrixXd force_calibration_mat = readCSVToEigenMatrix("Resources/calmat.csv", 3, 13); //Read in force calibration matrix		
+		Eigen::Vector3d force_zeroing_offset(0.0, 0.0, 0.0); //Zeroing is set to zeros for now		
+		std::string raw_force_string, temp_imu_string, force_string_xyz; //String that we read force readings into
+
 
 		//***********************Init the US Frame Grabber*********************
-		//USVideoStreaming USStreamer(show_us_stream, us_timeout); //Shows US stream when true, timeout for frabbing from the us thread
+		USVideoStreaming USStreamer(show_us_stream, us_timeout); //Shows US stream when true, timeout for frabbing from the us thread
 
 		//**********************Init Datalogger***********************
 		//Initializes the datalogger object, first string is root directory second string is subdirectory
@@ -181,19 +180,14 @@ int main()
 
 		while (true)
 		{			
-			//*****************Get RealSense Data******************
-			last_time = std::chrono::steady_clock::now();
-			
+			//*****************Get RealSense Data******************			
 			is_realsense_data_returned =realsense_camera.getRealSenseData(realsense_data);
 			
-			curr_time = std::chrono::steady_clock::now();
-			auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_time - last_time).count();
 			
 			//!!!Data Collection Synchronized to RealSense!!!
 			if (is_realsense_data_returned) //Enters if depth/ir frames arrive
 			{
 				//***********************RealSense Data Conversions******************
-				//last_time = std::chrono::steady_clock::now();
 				
 				//Converts left IR to vector representation (for pose tracker)
 				auto ir_data_left = reinterpret_cast<const uint8_t*>(realsense_data.irLeftFrame.get_data());
@@ -209,73 +203,64 @@ int main()
 				/*auto depth_data = reinterpret_cast<const uint16_t*>(realsense_data.depthFrameFiltered.get_data());
 				std::vector<uint16_t> depth_vector(depth_data, depth_data + (REALSENSE_HEIGHT * REALSENSE_WIDTH));
 				auto depth_ptr = std::make_unique<std::vector<uint16_t>>(std::move(depth_vector));*/
-				//Converts IR to OpenCV representation for display
 
+
+				//Converts IR to OpenCV representation for display
 				if (show_ir || show_clip_area_andkeypoints || show_pose)
 				{
 					ir_mat_left = cv::Mat(cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT), CV_8UC1, (void*)realsense_data.irLeftFrame.get_data());
 					ir_mat_right = cv::Mat(cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT), CV_8UC1, (void*)realsense_data.irRightFrame.get_data());
 				}
 
-				//****************Testing findkeypointsworldframe***************
-				//ir_mat_left = cv::Mat(cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT), CV_8UC1, (void*)realsense_data.irLeftFrame.get_data());
-				////ir_mat_right = cv::Mat(cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT), CV_8UC1, (void*)realsense_data.irRightFrame.get_data());
-				//last_time = std::chrono::steady_clock::now();
-				//auto detection = ir_segmenter->findKeypointsWorldFrame(std::move(ir_ptr_left), std::move(ir_ptr_right));
-				//curr_time = std::chrono::steady_clock::now();
-				//auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_time - last_time).count();
-				//std::cout << "Segmentation dt:" << elapsed_ms << std::endl;
-				//
-				//for (const auto& coord : detection->imCoords) {
-				//	// draw the point on the image (circle with radius 3, red color)
-				//	cv::circle(ir_mat_left, cv::Point(coord[0], coord[1]), 3, cv::Scalar(0, 0, 255), -1);
-				//}
-				//
-				//cv::imshow("left ir", ir_mat_left);
-				//char c = cv::waitKey(1);	//grabs key press, if q we close
-				//if (c == 'q')
-				//{
-				//	break;
-				//
-				//}
-				
-				
-				
-				//curr_time = std::chrono::steady_clock::now();
-				//auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_time - last_time).count();
 
-				//***********************Get Pose***********************
+				//**********************Update Pose Tracker********************
 				//Update the pose tracker with new realsense frames
-
 				//Updates the pose tracker
-				poseTracker.update(std::move(ir_ptr_left), std::move(ir_ptr_right));
-
-				
-				//Optimization: Put this under where we get force/US, gives pose calc thread time to catch up
-				//Checks if new pose arrived on thread (slow part)
-				//for (i = 0; i < 10; i++) {
-				//	auto loop_time = std::chrono::steady_clock::now();
-				//	auto elapsed_loop = std::chrono::duration_cast<std::chrono::milliseconds>(loop_time - last_time).count();
-				//	std::cout << "Polling Iteration " << i << ": " << elapsed_loop << " ms" << std::endl;
-				//	
-				//	if (poseTracker.hasNewPose())
-				//	{
-				//		std::cout << "New Pose Detected at " << elapsed_loop << " ms" << std::endl;
-				//		break; //Breaks if new pose is calculated
-				//	}
-				//	using namespace std::chrono_literals;
-				//	//Optimization: Change this ms value
-				//	std::this_thread::sleep_for(1ms); //Sleeps main to wait for new pose
-				//}
 				last_time = std::chrono::steady_clock::now();
-				std::unique_lock<std::mutex> lock{ poseTracker.m_poseMutex };
-				bool poseReceived = poseTracker.m_pose_here_CV.wait_for(lock, std::chrono::milliseconds(20), [&] {return poseTracker.hasNewPose(); });
-				lock.unlock();
+				poseTracker.update(std::move(ir_ptr_left), std::move(ir_ptr_right));
+				curr_time = std::chrono::steady_clock::now();
+				auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_time - last_time).count();
+				std::cout << "Update Pose dt: " << elapsed_ms << std::endl;
+				
+				
+
+				//************************Get Force/IMU************************
+				last_time = std::chrono::steady_clock::now();
+				shellReader.getForceString(raw_force_string); //Gets most recent force string
+				shellReader.getTempIMUString(temp_imu_string); //Gets most recent Temperature + IMU String
+
+				//Converts raw force values (binary) to estimated force values, if raw forces are NaN's then NaN's are returned
+				force_string_xyz = calculateForceVals(raw_force_string, force_calibration_mat, force_zeroing_offset);
+				//std::cout << "Raw Force Reading: " << raw_force_string << ", XYZ Force Reading: " << force_string_xyz << std::endl;
 
 				curr_time = std::chrono::steady_clock::now();
 				elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_time - last_time).count();
-				std::cout << "Hase Pose dt:" << elapsed_ms << std::endl;
-				
+				std::cout << "Get Force dt: " << elapsed_ms << std::endl;
+
+				//************************Get US Frame*************************
+				last_time = std::chrono::steady_clock::now();
+				cv::Mat usFrame = USStreamer.getFrame(); //Gets most recent us frame
+				if (!usFrame.empty()) //If the ultraasound frame is not empty, we write the US frame and increment us counter
+				{
+					us_frame_count++;
+					//datalogger.writeUSFrame(usFrame);
+					if (show_us_stream)
+					{
+						USStreamer.showFrame();
+					}
+				}
+				curr_time = std::chrono::steady_clock::now();
+				elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_time - last_time).count();
+				std::cout << "Get US dt: " << elapsed_ms << std::endl;
+
+
+				//************************Get Pose*****************************				
+				//Waits for pose calculator to grab pose
+				last_time = std::chrono::steady_clock::now();
+				std::unique_lock<std::mutex> lock{ poseTracker.m_poseMutex };
+				bool poseReceived = poseTracker.m_pose_here_CV.wait_for(lock, std::chrono::milliseconds(posetracker_timeout), [&] {return poseTracker.hasNewPose(); });
+				lock.unlock();				
+
 				//Check if pose is computed
 				if (!poseReceived) {
 					//Failed to compute pose, make the matrix all "-1's" to indicate it is false			
@@ -289,34 +274,10 @@ int main()
 					//Computes Pose
 					cam_T_us = poseTracker.getPose();
 				}
-				
+				curr_time = std::chrono::steady_clock::now();
+				elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_time - last_time).count();
+				std::cout << "Get Pose dt: " << elapsed_ms<<std::endl;
 
-				//************************Get Force/IMU************************
-				//last_time = std::chrono::steady_clock::now();
-				//shellReader.getForceString(raw_force_string); //Gets most recent force string
-				//shellReader.getTempIMUString(temp_imu_string); //Gets most recent Temperature + IMU String
-
-				////Converts raw force values (binary) to estimated force values, if raw forces are NaN's then NaN's are returned
-				//force_string_xyz = calculateForceVals(raw_force_string, force_calibration_mat, force_zeroing_offset);
-				////std::cout << "Raw Force Reading: " << raw_force_string << ", XYZ Force Reading: " << force_string_xyz << std::endl;
-
-				//curr_time = std::chrono::steady_clock::now();
-				//elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_time - last_time).count();
-
-				//************************Get US Frame*************************
-				//last_time = std::chrono::steady_clock::now();
-				//cv::Mat usFrame = USStreamer.getFrame(); //Gets most recent us frame
-				//if (!usFrame.empty()) //If the ultraasound frame is not empty, we write the US frame and increment us counter
-				//{
-				//	us_frame_count++;
-				//	//datalogger.writeUSFrame(usFrame);
-				//	if (show_us_stream)
-				//	{
-				//		USStreamer.showFrame();
-				//	}
-				//}
-				//curr_time = std::chrono::steady_clock::now();
-				//elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_time - last_time).count();
 
 				//************************Logging Data*************************
 				//last_time = std::chrono::steady_clock::now();
@@ -335,6 +296,7 @@ int main()
 
 				//curr_time = std::chrono::steady_clock::now();
 				//elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_time - last_time).count();
+
 
 				//************************Displaying Frames********************
 				if (show_pose) //Shows the pose
@@ -407,6 +369,28 @@ int main()
 
 
 				}
+
+				//****************Testing findkeypointsworldframe***************
+				//ir_mat_left = cv::Mat(cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT), CV_8UC1, (void*)realsense_data.irLeftFrame.get_data());
+				////ir_mat_right = cv::Mat(cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT), CV_8UC1, (void*)realsense_data.irRightFrame.get_data());
+				//last_time = std::chrono::steady_clock::now();
+				//auto detection = ir_segmenter->findKeypointsWorldFrame(std::move(ir_ptr_left), std::move(ir_ptr_right));
+				//curr_time = std::chrono::steady_clock::now();
+				//auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_time - last_time).count();
+				//std::cout << "Segmentation dt:" << elapsed_ms << std::endl;
+				//
+				//for (const auto& coord : detection->imCoords) {
+				//	// draw the point on the image (circle with radius 3, red color)
+				//	cv::circle(ir_mat_left, cv::Point(coord[0], coord[1]), 3, cv::Scalar(0, 0, 255), -1);
+				//}
+				//
+				//cv::imshow("left ir", ir_mat_left);
+				//char c = cv::waitKey(1);	//grabs key press, if q we close
+				//if (c == 'q')
+				//{
+				//	break;
+				//
+				//}
 
 			}
 		}

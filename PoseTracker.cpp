@@ -82,6 +82,7 @@ void PoseTracker::update(std::unique_ptr<std::vector<uint8_t>> irImLeft, std::un
 
     // Actually just pass the images to the queue
     m_detectionQ.emplace(std::move(irImLeft), std::move(irImRight));
+    
 }
 
 void PoseTracker::setSmoothing(const float smoothing)
@@ -316,7 +317,6 @@ void PoseTracker::setPoseFromResult(std::shared_ptr<IRSegmentation::IrDetection>
         m_objectPose.imageCoords = std::vector<Eigen::Vector2i>(mes->imCoords);
         m_objectPose.markerPositions = std::vector<Eigen::Vector3d>(mes->points);
         m_hasNewPose = true;
-        std::cout << "New Pose" << std::endl;
     }
     m_pose_here_CV.notify_one();
 
