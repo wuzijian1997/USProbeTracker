@@ -67,7 +67,7 @@ public:
 
 	/// Atomic flag to control the detection thread
 	std::atomic<bool> m_runDetectionThread = true;
-	std::atomic<bool> m_hasNewPose = false;
+	bool m_hasNewPose = false;
 
 	// Condition Variable to notify main when new pose is available
 	std::condition_variable m_pose_here_CV;

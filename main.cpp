@@ -138,21 +138,21 @@ int main()
 
 
 		//************************Init the Force Sensor************************
-		ShellSensorReader shellReader(SHELLSENSOR_PORTNAME, SHELLSENSOR_BAUDRATE, forcesensor_timeout); //Sets the baud rate, timeout is wait time thread before returning NaN's
-		//Initializes the force sensor, and checks if the port is connected
-		//Starts the force sensor thread
-		if (!shellReader.initialize())
-		{
-			std::cout << "Failed to Initialize Force Sensor Serial Stream" << std::endl;
-			return 0;
-		}		
-		Eigen::MatrixXd force_calibration_mat = readCSVToEigenMatrix("Resources/calmat.csv", 3, 13); //Read in force calibration matrix		
-		Eigen::Vector3d force_zeroing_offset(0.0, 0.0, 0.0); //Zeroing is set to zeros for now		
-		std::string raw_force_string, temp_imu_string, force_string_xyz; //String that we read force readings into
+		//ShellSensorReader shellReader(SHELLSENSOR_PORTNAME, SHELLSENSOR_BAUDRATE, forcesensor_timeout); //Sets the baud rate, timeout is wait time thread before returning NaN's
+		////Initializes the force sensor, and checks if the port is connected
+		////Starts the force sensor thread
+		//if (!shellReader.initialize())
+		//{
+		//	std::cout << "Failed to Initialize Force Sensor Serial Stream" << std::endl;
+		//	return 0;
+		//}		
+		//Eigen::MatrixXd force_calibration_mat = readCSVToEigenMatrix("Resources/calmat.csv", 3, 13); //Read in force calibration matrix		
+		//Eigen::Vector3d force_zeroing_offset(0.0, 0.0, 0.0); //Zeroing is set to zeros for now		
+		//std::string raw_force_string, temp_imu_string, force_string_xyz; //String that we read force readings into
 
 
 		//***********************Init the US Frame Grabber*********************
-		USVideoStreaming USStreamer(show_us_stream, us_timeout); //Shows US stream when true, timeout for frabbing from the us thread
+		//USVideoStreaming USStreamer(show_us_stream, us_timeout); //Shows US stream when true, timeout for frabbing from the us thread
 
 		//**********************Init Datalogger***********************
 		//Initializes the datalogger object, first string is root directory second string is subdirectory
@@ -220,7 +220,7 @@ int main()
 				poseTracker.update(std::move(ir_ptr_left), std::move(ir_ptr_right));
 				curr_time = std::chrono::steady_clock::now();
 				auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_time - last_time).count();
-				std::cout << "Update Pose dt: " << elapsed_ms << std::endl;
+				//std::cout << "Update Pose dt: " << elapsed_ms << std::endl;
 				
 				
 
@@ -276,7 +276,7 @@ int main()
 				}
 				curr_time = std::chrono::steady_clock::now();
 				elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_time - last_time).count();
-				std::cout << "Get Pose dt: " << elapsed_ms<<std::endl;
+				//std::cout << "Get Pose dt: " << elapsed_ms<<std::endl;
 
 
 				//************************Logging Data*************************

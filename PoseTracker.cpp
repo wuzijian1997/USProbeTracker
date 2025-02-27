@@ -81,6 +81,9 @@ void PoseTracker::update(std::unique_ptr<std::vector<uint8_t>> irImLeft, std::un
     //m_detectionQ.try_enqueue(std::move(fut));
 
     // Actually just pass the images to the queue
+    if (!irImLeft || !irImRight) {
+        return;
+    }
     m_detectionQ.emplace(std::move(irImLeft), std::move(irImRight));
     
 }
@@ -99,28 +102,26 @@ void PoseTracker::setJumpSettings(bool filterJumps, const float jumpThresholdMet
 void PoseTracker::detectionThreadFunction() {
     using namespace std::chrono_literals;
     while (m_runDetectionThread) {
-        // Try to pop images from the queue
-        SensorPacket detec(nullptr,nullptr);
+        SensorPacket detec(nullptr, nullptr);
         if (m_detectionQ.try_dequeue(detec)) {
             auto detection = m_irTracker->findKeypointsWorldFrame(std::move(detec.irImLeft), std::move(detec.irImRight));
-           
+
             if (detection->points.empty()) {
-                setRoi(m_roi[0] *MROI_SCALE_X, m_roi[1] * MROI_SCALE_Y, m_roi[2] * MROI_SCALE_X, m_roi[3] * MROI_SCALE_Y, m_roiBuffer);
-                std::this_thread::sleep_for(1ms); //Optimization: Change this time
+                setRoi(m_roi[0] * MROI_SCALE_X, m_roi[1] * MROI_SCALE_Y, m_roi[2] * MROI_SCALE_X, m_roi[3] * MROI_SCALE_Y, m_roiBuffer);
+                std::this_thread::sleep_for(1ms);
                 continue;
             }
-            
-            if (preprocessMarkerDetection(detection))
-            {               
+
+            if (preprocessMarkerDetection(detection)) {
                 processMarkerDetection(detection);
             }
         }
         else {
-            using namespace std::chrono_literals;
-            std::this_thread::sleep_for(1ms); //Optimization: Change this time
+            std::this_thread::sleep_for(1ms);
         }
     }
 }
+
 
 double absval(double val) {
     return (val < 0) ? -val : val;
@@ -129,8 +130,7 @@ double absval(double val) {
 bool PoseTracker::preprocessMarkerDetection(std::shared_ptr<IRSegmentation::IrDetection> detection) {
     // Remove obvious outliers that are too close, too far, or completely the wrong size
     size_t i = 0;
-    size_t init = detection->points.size();
-    while (i < init) {
+    while (i < detection->points.size()) {
 
         //Optimization: Can change if statement to check for diameter bounds
 
@@ -142,58 +142,16 @@ bool PoseTracker::preprocessMarkerDetection(std::shared_ptr<IRSegmentation::IrDe
             detection->markerDiameters.erase(detection->markerDiameters.begin() + i);
         }
         else {
-            // Look for loners in terms of size and position
-            /*int numSimilarSize = 0;
-            int numClosePosition = 0;
-            for (int j = 0; j < detection->points.size(); j++) {
-                if (i == j) continue;
-
-                float ratio = detection->markerDiameters[i] / detection->markerDiameters[j];
-                if (ratio > 0.5 && ratio < 2)
-                    numSimilarSize++;
-
-                double d = (detection->points[i] - detection->points[j]).norm();
-                if (d < m_maxPointDistance * 1.5)
-                    numClosePosition++;
-            }
-            if (numSimilarSize < 2 || numClosePosition < 2) {
-                if (m_logLevel == IrTracker::LogLevel::VeryVerbose) {
-                    if (numSimilarSize < 2)
-                        LOG << "Removing outlier in size [" << detection->points[i][0] << ", " << detection->points[i][1] << ", " << detection->points[i][2] << "] with diameter " << detection->markerDiameters[i];
-                    else if (numClosePosition < 2)
-                        LOG << "Removing outlier in position [" << detection->points[i][0] << ", " << detection->points[i][1] << ", " << detection->points[i][2] << "] with diameter " << detection->markerDiameters[i];
-                    else
-                        LOG << "Removing outlier in size and position [" << detection->points[i][0] << ", " << detection->points[i][1] << ", " << detection->points[i][2] << "] with diameter " << detection->markerDiameters[i];
-                }
-                detection->points.erase(detection->points.begin() + i);
-                detection->imCoords.erase(detection->imCoords.begin() + i);
-                detection->markerDiameters.erase(detection->markerDiameters.begin() + i);
-                continue;
-            }*/
-
-            // Convert coordinates to left-handed for Unity
-            //if (m_unity) {
-            //    auto tmp = detection->points[i][0];
-            //    detection->points[i][0] = -detection->points[i][1];
-            //    detection->points[i][1] = -tmp;
-            //}
-
-            // Convert to world frame
-            //detection->points[i] = detection->devicePose * detection->points[i];  //We aren't doing this here for the RealSense Implementaiton
 
             i++;
         }
     }
-
-    if (m_logLevel == IRSegmentation::LogLevel::VeryVerbose)
-        LOG << "Filtering kept " << detection->points.size() << " of " << init << " points";
 
     // Not enough points left over? Increase the size of the ROI again
     if (detection->points.size() < 2) {
         setRoi(m_roi[0] *MROI_SCALE_X, m_roi[1] * MROI_SCALE_Y, m_roi[2] * MROI_SCALE_X, m_roi[3] * MROI_SCALE_Y, m_roiBuffer);
         return false;
     }
-
     return true;
 }
 
