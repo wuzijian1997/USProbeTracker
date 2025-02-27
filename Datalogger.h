@@ -25,7 +25,7 @@ class Datalogger
 public:
 	//Inits the path, csv filename (scanning_datetime.csv), and csv header
 	Datalogger(std::string root_path, std::string participant_directory,
-		Eigen::MatrixXd& calib_mat, Eigen::Vector3d& zeroing_offset,std::string& left_camera_intrinsics, std::string& right_camera_intrinsics,double& depth_scale);
+		Eigen::MatrixXd& calib_mat, Eigen::Vector3d& zeroing_offset,std::string& left_camera_intrinsics, std::string& right_camera_intrinsics, double& depth_scale, int depth_width, int depth_height, double depth_fps, int us_width, int us_height, double us_fps);
 	~Datalogger();
 
 	void close();
@@ -36,7 +36,7 @@ public:
 		std::string& force_string_xyz, std::string& temp_imu_string);
 
 	void writeDepthFrame(const cv::Mat& frame);
-	void writeUSFrame(const cv::Mat& frame);
+	//void writeUSFrame(const cv::Mat& frame);
 
 	
 
@@ -47,6 +47,10 @@ private:
 	std::string _depth_file, _us_file;
 	FILE* _depth_pipeout;
 	FILE* _us_pipeout;
+
+	//OpenCV Video Writing Vars
+	cv::VideoWriter _us_videowriter, _depth_videowriter;
+
 
 	void initFfmpegipe(FILE*& pipeout, std::string& file_name, std::string px_fmt);
 

@@ -2,7 +2,7 @@
 
 Datalogger::Datalogger(std::string root_path, std::string participant_directory,
 	Eigen::MatrixXd& calib_mat, Eigen::Vector3d& zeroing_offset,
-	std::string& left_camera_intrinsics, std::string& right_camera_intrinsics, double& depth_scale)
+	std::string& left_camera_intrinsics, std::string& right_camera_intrinsics, double& depth_scale,int depth_width,int depth_height, double depth_fps, int us_width,int us_height,double us_fps)
 {
 	//************Handle Root Path***********
 
@@ -84,17 +84,30 @@ Datalogger::Datalogger(std::string root_path, std::string participant_directory,
 	_csv_file << "\n";
 
 	//Filename for the depth and ultrasound frames
-	_depth_file = _data_path + "/depthvideo_"+ datetime_str+".mp4";
+	_depth_file = _data_path + "/depthvideo_"+ datetime_str+".mkv";
 	_us_file = _data_path + "/usvideo_" + datetime_str+".mp4";
+
+	//Inits the OpenCV Video Writers
+	cv::Size frameSize = cv::Size(depth_width, depth_height);
+	_depth_videowriter.open(_depth_file, cv::CAP_FFMPEG,
+		cv::VideoWriter::fourcc('F', 'F', 'V', '1'), depth_fps,
+		frameSize,
+		{ cv::VideoWriterProperties::VIDEOWRITER_PROP_DEPTH, CV_16UC1,
+		cv::VideoWriterProperties::VIDEOWRITER_PROP_IS_COLOR, false });
+
+
+
+
+
 
 	//***********Opens ffmpef applications as a subprocess************
 	//FFMPEG input: RAW 16-bit grayscale images
 	//FFMPEG ouput: 16-bit FFV1 video
 
-	//Inits the depth ffmpeg pipe
-	initFfmpegipe(_depth_pipeout, _depth_file,"gray16le"); //gray16le format in ffmpeg
+	//!!!!!!!!!!Inits the depth ffmpeg pipe!!!!!!!!!!!!!!!!
+	//initFfmpegipe(_depth_pipeout, _depth_file,"gray16le"); //gray16le format in ffmpeg
 	//Inits the US ffmpeg pipe 
-	initFfmpegipe(_us_pipeout, _us_file,"bgr24"); //bgr24 format in ffmpeg
+	//initFfmpegipe(_us_pipeout, _us_file,"bgr24"); //bgr24 format in ffmpeg
 
 
 	//Opens the Zstandard compressed file for writting
@@ -130,11 +143,13 @@ void Datalogger::initFfmpegipe(FILE*& pipeout,std::string& file_name,std::string
 Datalogger::~Datalogger()
 {
 	_csv_file.close();
-	fflush(_depth_pipeout);
-	_pclose(_depth_pipeout);
+	_depth_videowriter.release();
 
-	fflush(_us_pipeout);
-	_pclose(_us_pipeout);
+	//fflush(_depth_pipeout);
+	//_pclose(_depth_pipeout);
+
+	//fflush(_us_pipeout);
+	//_pclose(_us_pipeout);
 
 	// Close Zstandard file
 	//if (_depth_zstd_file) {
@@ -207,32 +222,37 @@ void Datalogger::writeCSVRow(float& run_seconds, int& depth_frame_num, int& us_f
 
 
 void Datalogger::writeDepthFrame(const cv::Mat& frame) {
-	if (frame.type() != CV_16UC1) {
-		throw std::invalid_argument("Depth frames must be of type CV_16UC1.");
-	}
-	if (!_depth_pipeout) {
-		throw std::runtime_error("FFMPEG subprocess for depth is not open.");
-	}
 
-	// Write raw frame to FFmpeg
-	fwrite(frame.data, 1, REALSENSE_WIDTH * REALSENSE_HEIGHT * 2, _depth_pipeout);
-	fflush(_depth_pipeout);
+	if (frame.empty()) return;
+	std::cout << "Wrote frame" << std::endl;
+	_depth_videowriter.write(frame);
+	
+	//if (frame.type() != CV_16UC1) {
+	//	throw std::invalid_argument("Depth frames must be of type CV_16UC1.");
+	//}
+	//if (!_depth_pipeout) {
+	//	throw std::runtime_error("FFMPEG subprocess for depth is not open.");
+	//}
+
+	//// Write raw frame to FFmpeg
+	//fwrite(frame.data, 1, REALSENSE_WIDTH * REALSENSE_HEIGHT * 2, _depth_pipeout);
+	//fflush(_depth_pipeout);
 	
 }
 
-void Datalogger::writeUSFrame(const cv::Mat& frame) {
-	if (frame.type() != CV_8UC3) {
-		throw std::invalid_argument("US frames must be of type CV_8UC3.");
-	}
-	if (!_us_pipeout) {
-		throw std::runtime_error("FFMPEG subprocess for us is not open.");
-	}
-
-	// Write raw frame to FFmpeg
-	fwrite(frame.data, 1, REALSENSE_WIDTH * REALSENSE_HEIGHT * 2, _us_pipeout);
-	fflush(_us_pipeout);
-
-}
+//void Datalogger::writeUSFrame(const cv::Mat& frame) {
+//	if (frame.type() != CV_8UC3) {
+//		throw std::invalid_argument("US frames must be of type CV_8UC3.");
+//	}
+//	if (!_us_pipeout) {
+//		throw std::runtime_error("FFMPEG subprocess for us is not open.");
+//	}
+//
+//	// Write raw frame to FFmpeg
+//	fwrite(frame.data, 1, REALSENSE_WIDTH * REALSENSE_HEIGHT * 2, _us_pipeout);
+//	fflush(_us_pipeout);
+//
+//}
 
 //void Datalogger::writeDepthFrame(const cv::Mat& frame) {
 //	if (frame.type() != CV_16UC1) {
