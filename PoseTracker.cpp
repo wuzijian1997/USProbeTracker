@@ -84,7 +84,16 @@ void PoseTracker::update(std::unique_ptr<std::vector<uint8_t>> irImLeft, std::un
     if (!irImLeft || !irImRight) {
         return;
     }
-    m_detectionQ.emplace(std::move(irImLeft), std::move(irImRight));
+
+    {
+        std::lock_guard<std::mutex> l{ m_imageMutex };
+        //Clears the queue before pushing
+        while (m_detectionQ.size_approx() > 0) {
+            if (!m_detectionQ.pop()) break;
+        }
+        m_detectionQ.emplace(std::move(irImLeft), std::move(irImRight));
+    }
+    m_image_CV.notify_one();
     
 }
 
@@ -102,8 +111,13 @@ void PoseTracker::setJumpSettings(bool filterJumps, const float jumpThresholdMet
 void PoseTracker::detectionThreadFunction() {
     using namespace std::chrono_literals;
     while (m_runDetectionThread) {
+        std::unique_lock<std::mutex> lock{ m_imageMutex };
+        m_image_CV.wait(lock, [this]() {return m_detectionQ.size_approx()>0; });
         SensorPacket detec(nullptr, nullptr);
-        if (m_detectionQ.try_dequeue(detec)) {
+        m_detectionQ.try_dequeue(detec);
+        
+
+        if (detec.irImLeft && detec.irImRight) {
             auto detection = m_irTracker->findKeypointsWorldFrame(std::move(detec.irImLeft), std::move(detec.irImRight));
 
             if (detection->points.empty()) {
@@ -119,6 +133,7 @@ void PoseTracker::detectionThreadFunction() {
         else {
             std::this_thread::sleep_for(1ms);
         }
+        lock.unlock();
     }
 }
 

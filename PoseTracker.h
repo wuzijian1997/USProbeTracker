@@ -76,6 +76,10 @@ public:
 	//Isometry3d m_objectPose = Isometry3d::Identity();
 	IRPose m_objectPose;
 
+	//Variables for updating the image
+	std::mutex m_imageMutex;
+	std::condition_variable m_image_CV;
+
 private:
 	struct SensorPacket {
 		SensorPacket(std::unique_ptr<std::vector<uint8_t>> ir_left, std::unique_ptr<std::vector<uint8_t>> ir_right )

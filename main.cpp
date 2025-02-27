@@ -39,7 +39,7 @@ bool pose_filterJumps = true; //Filter jumps in pose tracking
 float pose_jumpThresholdMetres = 0.3;
 int pose_numFramesUntilSet = 4;
 float pose_smoothing = 0.0f; //We are not smoothing the pose
-int posetracker_timeout = 5; //We wait for 5ms for the pose tracker to update pose
+int posetracker_timeout = 18; //We wait for 5ms for the pose tracker to update pose
 
 int forcesensor_timeout = 2; //We wait for 2 ms, force grabber returns NaN's if waiting more than this
 
@@ -220,7 +220,7 @@ int main()
 				poseTracker.update(std::move(ir_ptr_left), std::move(ir_ptr_right));
 				curr_time = std::chrono::steady_clock::now();
 				auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_time - last_time).count();
-				//std::cout << "Update Pose dt: " << elapsed_ms << std::endl;
+				std::cout << "Update Pose dt: " << elapsed_ms << std::endl;
 				
 				
 
@@ -276,7 +276,7 @@ int main()
 				}
 				curr_time = std::chrono::steady_clock::now();
 				elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_time - last_time).count();
-				//std::cout << "Get Pose dt: " << elapsed_ms<<std::endl;
+				std::cout << "Get Pose dt: " << elapsed_ms<<std::endl;
 
 
 				//************************Logging Data*************************
