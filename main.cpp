@@ -225,33 +225,33 @@ int main()
 				
 
 				//************************Get Force/IMU************************
-				last_time = std::chrono::steady_clock::now();
-				shellReader.getForceString(raw_force_string); //Gets most recent force string
-				shellReader.getTempIMUString(temp_imu_string); //Gets most recent Temperature + IMU String
+				//last_time = std::chrono::steady_clock::now();
+				//shellReader.getForceString(raw_force_string); //Gets most recent force string
+				//shellReader.getTempIMUString(temp_imu_string); //Gets most recent Temperature + IMU String
 
-				//Converts raw force values (binary) to estimated force values, if raw forces are NaN's then NaN's are returned
-				force_string_xyz = calculateForceVals(raw_force_string, force_calibration_mat, force_zeroing_offset);
-				//std::cout << "Raw Force Reading: " << raw_force_string << ", XYZ Force Reading: " << force_string_xyz << std::endl;
+				////Converts raw force values (binary) to estimated force values, if raw forces are NaN's then NaN's are returned
+				//force_string_xyz = calculateForceVals(raw_force_string, force_calibration_mat, force_zeroing_offset);
+				////std::cout << "Raw Force Reading: " << raw_force_string << ", XYZ Force Reading: " << force_string_xyz << std::endl;
 
-				curr_time = std::chrono::steady_clock::now();
-				elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_time - last_time).count();
-				std::cout << "Get Force dt: " << elapsed_ms << std::endl;
+				//curr_time = std::chrono::steady_clock::now();
+				//elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_time - last_time).count();
+				//std::cout << "Get Force dt: " << elapsed_ms << std::endl;
 
 				//************************Get US Frame*************************
-				last_time = std::chrono::steady_clock::now();
-				cv::Mat usFrame = USStreamer.getFrame(); //Gets most recent us frame
-				if (!usFrame.empty()) //If the ultraasound frame is not empty, we write the US frame and increment us counter
-				{
-					us_frame_count++;
-					//datalogger.writeUSFrame(usFrame);
-					if (show_us_stream)
-					{
-						USStreamer.showFrame();
-					}
-				}
-				curr_time = std::chrono::steady_clock::now();
-				elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_time - last_time).count();
-				std::cout << "Get US dt: " << elapsed_ms << std::endl;
+				//last_time = std::chrono::steady_clock::now();
+				//cv::Mat usFrame = USStreamer.getFrame(); //Gets most recent us frame
+				//if (!usFrame.empty()) //If the ultraasound frame is not empty, we write the US frame and increment us counter
+				//{
+				//	us_frame_count++;
+				//	//datalogger.writeUSFrame(usFrame);
+				//	if (show_us_stream)
+				//	{
+				//		USStreamer.showFrame();
+				//	}
+				//}
+				//curr_time = std::chrono::steady_clock::now();
+				//elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_time - last_time).count();
+				//std::cout << "Get US dt: " << elapsed_ms << std::endl;
 
 
 				//************************Get Pose*****************************				
