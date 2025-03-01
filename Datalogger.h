@@ -36,6 +36,8 @@ public:
 		std::string& force_string_xyz, std::string& temp_imu_string);
 
 	void writeDepthFrame(const cv::Mat& frame);
+	void writeIRFrames(const cv::Mat& irLeft,const cv::Mat& irRight);
+	void writeColourFrame(const cv::Mat& colourFrame);
 	//void writeUSFrame(const cv::Mat& frame);
 
 	
@@ -44,12 +46,12 @@ private:
 	//Class Vars
 	std::ofstream _csv_file;
 	std::string _data_path,_csv_filename;
-	std::string _depth_file, _us_file;
+	std::string _depth_file, _us_file,_irLeft_file,_irRight_file,_rgb_file;
 	FILE* _depth_pipeout;
 	FILE* _us_pipeout;
 
 	//OpenCV Video Writing Vars
-	cv::VideoWriter _us_videowriter, _depth_videowriter;
+	cv::VideoWriter _us_videowriter, _depth_videowriter,_irLeft_videowriter,_irRight_videowriter,_bgr_videowriter;
 
 
 	void initFfmpegipe(FILE*& pipeout, std::string& file_name, std::string px_fmt);

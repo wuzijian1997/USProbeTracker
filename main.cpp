@@ -65,11 +65,14 @@ int main()
 
 	//OpenCV Matrices of right/left IR
 	cv::Mat ir_mat_left, ir_mat_right;
+	cv::Mat colour_frame;
 	//Vars for displaying
 	cv::Mat depth_normalized;
 	double minVal, maxVal;
 	cv::Mat depth_colormap;
 	cv::Mat depth_bgr(cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT),CV_8UC3); //We encode the depth data into 3 8-bit channels. 
+
+	cv::Size realsense_framesize = cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT);
 
 	//Boolean for if realsense data is returned
 	bool is_realsense_data_returned = false;
@@ -153,7 +156,7 @@ int main()
 
 
 		//***********************Init the US Frame Grabber*********************
-		//USVideoStreaming USStreamer(show_us_stream, us_timeout); //Shows US stream when true, timeout for frabbing from the us thread
+		USVideoStreaming USStreamer(show_us_stream, us_timeout); //Shows US stream when true, timeout for frabbing from the us thread
 
 		//**********************Init Datalogger***********************
 		//Initializes the datalogger object, first string is root directory second string is subdirectory
@@ -201,14 +204,6 @@ int main()
 				std::vector<uint8_t> ir_vector_right(ir_data_right, ir_data_right + (REALSENSE_HEIGHT * REALSENSE_WIDTH));
 				auto ir_ptr_right = std::make_unique<std::vector<uint8_t>>(std::move(ir_vector_right));
 
-				//Converts IR to OpenCV representation for display
-				if (show_ir || show_clip_area_andkeypoints || show_pose)
-				{
-					ir_mat_left = cv::Mat(cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT), CV_8UC1, (void*)realsense_data.irLeftFrame.get_data());
-					ir_mat_right = cv::Mat(cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT), CV_8UC1, (void*)realsense_data.irRightFrame.get_data());
-				}
-
-
 				//**********************Update Pose Tracker********************
 				//Update the pose tracker with new realsense frames
 				//Updates the pose tracker
@@ -234,30 +229,29 @@ int main()
 				//std::cout << "Get Force dt: " << elapsed_ms << std::endl;
 
 				//************************Get US Frame*************************
-				//last_time = std::chrono::steady_clock::now();
-				//cv::Mat usFrame = USStreamer.getFrame(); //Gets most recent us frame
-				//if (!usFrame.empty()) //If the ultraasound frame is not empty, we write the US frame and increment us counter
-				//{
-				//	us_frame_count++;
-				//	//datalogger.writeUSFrame(usFrame);
-				//	if (show_us_stream)
-				//	{
-				//		USStreamer.showFrame();
-				//	}
-				//}
-				//curr_time = std::chrono::steady_clock::now();
-				//elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_time - last_time).count();
-				//std::cout << "Get US dt: " << elapsed_ms << std::endl;
+				last_time = std::chrono::steady_clock::now();
+				cv::Mat usFrame = USStreamer.getFrame(); //Gets most recent us frame
+				if (!usFrame.empty()) //If the ultraasound frame is not empty, we write the US frame and increment us counter
+				{
+					us_frame_count++;
+					//datalogger.writeUSFrame(usFrame);
+					if (show_us_stream)
+					{
+						USStreamer.showFrame();
+					}
+				}
+
+				curr_time = std::chrono::steady_clock::now();
+				elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_time - last_time).count();
+				std::cout << "Get US dt: " << elapsed_ms << std::endl;
 
 
-				//****************Depth Frame Data Conversions*****************
+				//****************RealSense OpenCV Conversions*****************
 				//Converts depth frame to vector representation 
 				/*auto depth_data = reinterpret_cast<const uint16_t*>(realsense_data.depthFrameFiltered.get_data());
 				std::vector<uint16_t> depth_vector(depth_data, depth_data + (REALSENSE_HEIGHT * REALSENSE_WIDTH));
 				auto depth_ptr = std::make_unique<std::vector<uint16_t>>(std::move(depth_vector));*/
-				cv::Mat depth_mat(cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT), CV_16UC1, (void*)realsense_data.depthFrame.get_data(), cv::Mat::AUTO_STEP);
-				
-				
+				cv::Mat depth_mat(realsense_framesize, CV_16UC1, (void*)realsense_data.depthFrame.get_data(), cv::Mat::AUTO_STEP);
 				//cv::Mat depth_new(cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT),CV_8UC3, (void*)realsense_data.depthFrame.get_data(), cv::Mat::AUTO_STEP);
 
 				//Split depth into blue and green channels (8 bits to blue, 4 bits to red)
@@ -270,7 +264,17 @@ int main()
 				//	}
 				//}
 
+				//IR Frames to OpenCV
+				ir_mat_left = cv::Mat(realsense_framesize, CV_8UC1, (void*)realsense_data.irLeftFrame.get_data(), cv::Mat::AUTO_STEP);
+				ir_mat_right = cv::Mat(realsense_framesize, CV_8UC1, (void*)realsense_data.irRightFrame.get_data(), cv::Mat::AUTO_STEP);
 
+				//RGB Frame to OpenCV
+				colour_frame = cv::Mat(realsense_framesize, CV_8UC3, (void*)realsense_data.colourFrame.get_data(), cv::Mat::AUTO_STEP);
+
+				//**********************Logging RealSense Frames*************************
+				datalogger.writeDepthFrame(depth_bgr); //Writes depth frame
+				datalogger.writeIRFrames(ir_mat_left, ir_mat_right); //Writes left/right ir
+				datalogger.writeColourFrame(colour_frame);
 
 				//************************Get Pose*****************************				
 				//Waits for pose calculator to grab pose
@@ -297,7 +301,7 @@ int main()
 				//std::cout << "Get Pose dt: " << elapsed_ms<<std::endl;
 
 
-				//************************Logging Data*************************
+				//************************Logging Pose/Force/IMU Data*************************
 				//last_time = std::chrono::steady_clock::now();
 				////get the time since running
 				//auto current_time = std::chrono::high_resolution_clock::now();
@@ -308,8 +312,7 @@ int main()
 
 				////Writes pose/force to scandata_datetime.csv
 				//datalogger.writeCSVRow(elapsed_seconds, realsense_frame_count, us_frame_count, cam_T_us, raw_force_string, force_string_xyz, temp_imu_string);
-				////Writes the depth frame to depthframe_datetime.mp4
-				datalogger.writeDepthFrame(depth_mat);
+				
 				
 				
 

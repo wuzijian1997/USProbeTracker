@@ -84,16 +84,45 @@ Datalogger::Datalogger(std::string root_path, std::string participant_directory,
 	_csv_file << "\n";
 
 	//Filename for the depth and ultrasound frames
-	_depth_file = _data_path + "/depthvideo_"+ datetime_str+".mkv";
+	_depth_file = _data_path + "/depthvideo_"+ datetime_str+".avi";
+	_irLeft_file = _data_path + "/irLeftvideo_" + datetime_str + ".avi";
+	_irRight_file = _data_path + "/irRightvideo_" + datetime_str + ".avi";
+	_rgb_file = _data_path + "/rgbvideo_" + datetime_str + ".avi";
+
 	_us_file = _data_path + "/usvideo_" + datetime_str+".mp4";
 
 	//Inits the OpenCV Video Writers
 	cv::Size frameSize = cv::Size(depth_width, depth_height);
+
+	//Depth video writer
 	_depth_videowriter.open(_depth_file, cv::CAP_FFMPEG,
 		cv::VideoWriter::fourcc('F', 'F', 'V', '1'), depth_fps,
 		frameSize,
 		{ cv::VideoWriterProperties::VIDEOWRITER_PROP_DEPTH, CV_16UC1,
 		cv::VideoWriterProperties::VIDEOWRITER_PROP_IS_COLOR, false });
+
+	/*_depth_videowriter.open(_depth_file, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'), depth_fps,
+		frameSize,
+		{ cv::VideoWriterProperties::VIDEOWRITER_PROP_IS_COLOR, true });*/
+
+	//ir Left video writer
+	_irLeft_videowriter.open(_irLeft_file, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'), depth_fps,
+		frameSize,
+		{ cv::VideoWriterProperties::VIDEOWRITER_PROP_DEPTH, CV_8UC1,
+		cv::VideoWriterProperties::VIDEOWRITER_PROP_IS_COLOR, false });
+
+	//ir Right video writer
+	_irRight_videowriter.open(_irRight_file, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'), depth_fps,
+		frameSize,
+		{ cv::VideoWriterProperties::VIDEOWRITER_PROP_DEPTH, CV_8UC1,
+		cv::VideoWriterProperties::VIDEOWRITER_PROP_IS_COLOR, false });
+
+	//rgb bideo writer
+	_bgr_videowriter.open(_rgb_file, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'), depth_fps,
+		frameSize,
+		{ cv::VideoWriterProperties::VIDEOWRITER_PROP_IS_COLOR, true });
+
+
 
 
 
@@ -144,6 +173,8 @@ Datalogger::~Datalogger()
 {
 	_csv_file.close();
 	_depth_videowriter.release();
+	_irLeft_videowriter.release();
+	_irRight_videowriter.release();
 
 	//fflush(_depth_pipeout);
 	//_pclose(_depth_pipeout);
@@ -224,7 +255,6 @@ void Datalogger::writeCSVRow(float& run_seconds, int& depth_frame_num, int& us_f
 void Datalogger::writeDepthFrame(const cv::Mat& frame) {
 
 	if (frame.empty()) return;
-	std::cout << "Wrote frame" << std::endl;
 	_depth_videowriter.write(frame);
 	
 	//if (frame.type() != CV_16UC1) {
@@ -239,6 +269,21 @@ void Datalogger::writeDepthFrame(const cv::Mat& frame) {
 	//fflush(_depth_pipeout);
 	
 }
+
+void Datalogger::writeIRFrames(const cv::Mat& irLeft, const cv::Mat& irRight) {
+	if (irLeft.empty() || irRight.empty()) return;
+	_irLeft_videowriter.write(irLeft);
+	_irRight_videowriter.write(irRight);
+
+}
+
+void Datalogger::writeColourFrame(const cv::Mat& colourFrame) {
+	if (colourFrame.empty()) return;
+	_bgr_videowriter.write(colourFrame);
+
+}
+
+
 
 //void Datalogger::writeUSFrame(const cv::Mat& frame) {
 //	if (frame.type() != CV_8UC3) {

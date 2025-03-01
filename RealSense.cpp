@@ -28,6 +28,7 @@ bool RealSense::RealSenseInit(int width, int height, int fps, float enable_laser
     _realSense_config.enable_stream(RS2_STREAM_INFRARED, 1, width, height, RS2_FORMAT_Y8, fps);
     _realSense_config.enable_stream(RS2_STREAM_INFRARED, 2, width, height, RS2_FORMAT_Y8, fps);
     _realSense_config.enable_stream(RS2_STREAM_DEPTH, width, height, RS2_FORMAT_Z16, fps);
+    _realSense_config.enable_stream(RS2_STREAM_COLOR, width, height, RS2_FORMAT_BGR8, fps);
 
 
 
@@ -67,25 +68,32 @@ bool RealSense::RealSenseInit(int width, int height, int fps, float enable_laser
 
     for (auto& sensor : sensors)
     {
-        // Disable auto exposure
-        if (sensor.supports(RS2_OPTION_ENABLE_AUTO_EXPOSURE))
+        // Disable auto exposure for IR
+        if (sensor.supports(RS2_OPTION_ENABLE_AUTO_EXPOSURE) && sensor.get_info(RS2_CAMERA_INFO_NAME) == std::string("Stereo Module"))
         {
             sensor.set_option(RS2_OPTION_ENABLE_AUTO_EXPOSURE, enable_autoexposure); // Turn OFF auto exposure
-            std::cout << "Auto exposure disabled for sensor: " << sensor.get_info(RS2_CAMERA_INFO_NAME) << std::endl;
+            std::cout << "Auto exposure set to " << enable_autoexposure << " for sensor: " << sensor.get_info(RS2_CAMERA_INFO_NAME) << std::endl;
+        }
+
+        // Enable auto exposure for BGR
+        if (sensor.supports(RS2_OPTION_ENABLE_AUTO_EXPOSURE) && sensor.get_info(RS2_CAMERA_INFO_NAME) == std::string("RGB Camera"))
+        {
+            sensor.set_option(RS2_OPTION_ENABLE_AUTO_EXPOSURE, REALSENSE_BGR_AUTOEXPOSURE_ENABLE); // Turn OFF auto exposure
+            std::cout << "Auto exposure set to "<<REALSENSE_BGR_AUTOEXPOSURE_ENABLE<<" for sensor: " << sensor.get_info(RS2_CAMERA_INFO_NAME) << std::endl;
         }
 
         // Set manual exposure
-        if (sensor.supports(RS2_OPTION_EXPOSURE))
+        if (sensor.supports(RS2_OPTION_EXPOSURE) && sensor.get_info(RS2_CAMERA_INFO_NAME) == std::string("Stereo Module"))
         {
             sensor.set_option(RS2_OPTION_EXPOSURE, exposure_level); // Set exposure to 3000
-            std::cout << "Exposure set to 3000 for sensor: " << sensor.get_info(RS2_CAMERA_INFO_NAME) << std::endl;
+            std::cout << "Exposure set to "<<exposure_level<<" for sensor: " << sensor.get_info(RS2_CAMERA_INFO_NAME) << std::endl;
         }
 
         // Set gain
         if (sensor.supports(RS2_OPTION_GAIN) && sensor.get_info(RS2_CAMERA_INFO_NAME) == std::string("Stereo Module"))
         {
             sensor.set_option(RS2_OPTION_GAIN, static_cast<float>(gain)); // Set gain to 16
-            std::cout << "Gain set to 16 for sensor: " << sensor.get_info(RS2_CAMERA_INFO_NAME) << std::endl;
+            std::cout << "Gain set to "<<gain<<" for sensor: " << sensor.get_info(RS2_CAMERA_INFO_NAME) << std::endl;
         }
     }
 
@@ -118,8 +126,9 @@ bool RealSense::RealSenseInit(int width, int height, int fps, float enable_laser
 
 
     //Configures the temporal depth filter for the findkeypoints function
-    _temp_filter.set_option(RS2_OPTION_FILTER_SMOOTH_ALPHA, filter_alpha);
-    _temp_filter.set_option(RS2_OPTION_FILTER_SMOOTH_DELTA, filter_delta);
+    // Comment out filtering for now
+    //_temp_filter.set_option(RS2_OPTION_FILTER_SMOOTH_ALPHA, filter_alpha);
+    //_temp_filter.set_option(RS2_OPTION_FILTER_SMOOTH_DELTA, filter_delta);
 
     _isPipelineInit = true;
     //Returns true if all initialization worked
@@ -210,6 +219,8 @@ void RealSense::frameProducer()
 
             //Gets the realsense data object
             RealSenseData realsense_data;
+
+            //Gets the IR Frames
             realsense_data.irLeftFrame = aligned_frameset.get_infrared_frame(1);
             realsense_data.irRightFrame = aligned_frameset.get_infrared_frame(2);
 
@@ -218,6 +229,7 @@ void RealSense::frameProducer()
                 continue;
             }
 
+            //Gets the depth frames
             realsense_data.depthFrame = aligned_frameset.get_depth_frame();
 
             if (!realsense_data.depthFrame) {
@@ -225,11 +237,16 @@ void RealSense::frameProducer()
                 continue;
             }
 
-            realsense_data.depthFrameFiltered = _temp_filter.process(realsense_data.depthFrame);
+            //Gets the colour frames
+            realsense_data.colourFrame=aligned_frameset.get_color_frame();
+            if (!realsense_data.colourFrame) {
+                std::cout << "Error: Failed to get RGB frame." << std::endl;
+                continue;
+            }
+            //realsense_data.depthFrameFiltered = _temp_filter.process(realsense_data.depthFrame); //Comment out filtering for now
 
             //Updates the data queue
             //locks the mutex before writing to the queue and notifying
-
 
             {
                 std::lock_guard<std::mutex> l{ _realSenseMutex };

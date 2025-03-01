@@ -30,6 +30,9 @@ const int REALSENSE_RETRY = 100/ REALSENSE_THREAD_DELAY; //We restart the pipeli
 const float REALSENSE_AUTOEXPOSURE_ENABLE = 0.0f; //Disables the auto exposure
 const float REALSENSE_EXPOSURE_LEVEL = 3000.0f; //The amount of exposure
 
+//*******RealSense RGB Constants*************
+const float REALSENSE_BGR_AUTOEXPOSURE_ENABLE = 1.0f; //Enable the colour frame auto exposure
+
 //Depth Frame Filtering Constants
 const float TEMPORAL_DEPTH_FILTER_ALPHA = 0.2f;
 const float TEMPORAL_DEPTH_FILTER_DELTA = 17.0f;
@@ -45,7 +48,8 @@ public:
 		rs2::frame irLeftFrame;
 		rs2::frame irRightFrame;
 		rs2::frame depthFrame;
-		rs2::frame depthFrameFiltered;
+		//rs2::frame depthFrameFiltered; Commment out filtering for now
+		rs2::frame colourFrame;
 	};
 	
 
@@ -101,7 +105,8 @@ private:
 	std::unique_ptr<rs2::align> _align_to_left_ir;
 
 	//Temporal Filter Applied to Depth before sent to findkeypoints worldframe
-	rs2::temporal_filter _temp_filter;
+	//Comment out filtering for now
+	//rs2::temporal_filter _temp_filter;
 
 	//Threading class vars
 	
