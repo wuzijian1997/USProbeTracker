@@ -1,8 +1,8 @@
 #include "ShellSensorReader.h"
 
 
-ShellSensorReader::ShellSensorReader(const std::wstring& portName, DWORD baudRate,int timeout)
-	: _portName(portName), _baudRate(baudRate),_timeout(timeout)
+ShellSensorReader::ShellSensorReader(const std::wstring& portName, DWORD baudRate,int timeout, Eigen::MatrixXd force_calibration_mat, Eigen::Vector3d force_zeroing_offset, Eigen::MatrixXd force_compensation_mat)
+	: _portName(portName), _baudRate(baudRate),_timeout(timeout), _force_calibration_mat(force_calibration_mat),_force_zeroing_offset(force_zeroing_offset),_force_compensation_mat(force_compensation_mat)
 {}
 
 ShellSensorReader::~ShellSensorReader()
@@ -24,6 +24,10 @@ ShellSensorReader::~ShellSensorReader()
 
 	while (!_tempImuQueue.empty()) {
 		_tempImuQueue.pop();
+	}
+
+	while (!_forceXYZQueue.empty()) {
+		_forceXYZQueue.pop();
 	}
 
 
@@ -113,6 +117,7 @@ void ShellSensorReader::readLines()
 	char tempChar;
 	DWORD bytesRead;
 	std::string _buffer; //Buffer of characters read in on serial port
+	std::string force_string_xyz; //Holds the converted raw force values to xyz force
 
 	//Vars for timeout checking
 	std::chrono::steady_clock::time_point last_time = std::chrono::steady_clock::now();
@@ -143,6 +148,14 @@ void ShellSensorReader::readLines()
 							_forceSenseQueue.pop();
 						}
 						_forceSenseQueue.push(line);
+
+						//Calculates the xyz from raw force
+						force_string_xyz = calculateForceVals(line, _force_calibration_mat, _force_zeroing_offset,_force_compensation_mat);
+						while (!_forceXYZQueue.empty()) {
+							_forceXYZQueue.pop();
+						}
+						_forceXYZQueue.push(force_string_xyz);
+
 					}
 					//Notifies the recipient
 					_ForceSenseReadingArrived.notify_one();
@@ -197,11 +210,11 @@ bool ShellSensorReader::checkLineTag(std::string& lineTag,std::string& serialLin
 
 //Methods to get the force and Temp/IMU lines from the two threading functions
 
-void ShellSensorReader::getForceString(std::string& force_string)
+void ShellSensorReader::getForceString(std::string& force_string,std::string& force_xyz_string)
 {
 	std::unique_lock<std::mutex> lock{ _sensorReadingMutex };
 	//Returns NaNs if waiting longer than _timeout value
-	if (!_ForceSenseReadingArrived.wait_for(lock, std::chrono::milliseconds(_timeout), [this]() { return !_forceSenseQueue.empty(); }))
+	if (!_ForceSenseReadingArrived.wait_for(lock, std::chrono::milliseconds(_timeout), [this]() { return (!_forceSenseQueue.empty())&&(!_forceXYZQueue.empty()); }))
 	{
 		//We had a timeout event, return with force_string set to 12 NaN's
 		force_string = TWELVE_NaNs;
@@ -209,14 +222,17 @@ void ShellSensorReader::getForceString(std::string& force_string)
 		return;
 	}
 
-	if (!_forceSenseQueue.empty())
+	if ((!_forceSenseQueue.empty()) && (!_forceXYZQueue.empty()))
 	{
 		//Grab frame if not empty queue
 		force_string = _forceSenseQueue.front();
 		_forceSenseQueue.pop();
+		force_xyz_string = _forceXYZQueue.front();
+		_forceXYZQueue.pop();
 	}
 	else {
 		force_string = TWELVE_NaNs;
+		force_xyz_string = "NaN,NaN,NaN";
 	}
 	lock.unlock();
 	return;

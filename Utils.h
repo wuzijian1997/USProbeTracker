@@ -8,7 +8,7 @@
 
 //************Force Calculation Helper Methods*************
 //Helper methods
-std::string calculateForceVals(std::string& force_string, Eigen::MatrixXd& calib_mat, Eigen::Vector3d& zeroing_offset);
+std::string calculateForceVals(std::string& force_string, Eigen::MatrixXd& calib_mat, Eigen::Vector3d& zeroing_offset, Eigen::MatrixXd& force_compensation_mat);
 Eigen::VectorXd forcestringToForceVector(std::string& raw_force_string);
 std::string eigenForceToStringForce(Eigen::Vector3d& force_xyz);
 Eigen::MatrixXd readCSVToEigenMatrix(const std::string& file_path, int rows, int cols);
@@ -16,3 +16,6 @@ std::string EigenMatrixToString(Eigen::MatrixXd& matrix);
 std::string getDatetimeWithMilliseconds();
 Eigen::Matrix3d convertCVMatToEigen_3b3(cv::Mat R_mat);
 Eigen::Vector3d convertCVMatToEigen_1b3(cv::Mat T_mat);
+std::string openCVMatToCSVString(const cv::Mat& mat);
+cv::Mat cropMat(const cv::Mat& inputMat, cv::Rect cropRegion);
+Eigen::Vector3d XYZforcestringToForceXYZVector(const std::string& xyz_force_string);

@@ -2,7 +2,7 @@
 #include "Utils.h"
 
 
-std::string calculateForceVals(std::string& raw_force_string, Eigen::MatrixXd& calib_mat, Eigen::Vector3d& zeroing_offset)
+std::string calculateForceVals(std::string& raw_force_string, Eigen::MatrixXd& calib_mat, Eigen::Vector3d& zeroing_offset,Eigen::MatrixXd& force_compensation_mat)
 {
 	std::string string_force_xyz;
 
@@ -19,9 +19,9 @@ std::string calculateForceVals(std::string& raw_force_string, Eigen::MatrixXd& c
 
 		//Computes the x,y,z force from initial ATI reading
 		Eigen::Vector3d force_xyz = calib_mat * raw_force_vector; // .transpose(); Transpose here is wrong
-
+		force_xyz = force_compensation_mat * force_xyz;
 		//Adds the zeroing offset if present
-		force_xyz = force_xyz + zeroing_offset;
+		force_xyz = force_xyz - zeroing_offset;
 
 
 		//Converts the Eigen vector back to a string
@@ -47,6 +47,22 @@ Eigen::VectorXd forcestringToForceVector(std::string& raw_force_string)
 	raw_force_vector[12] = 1.0f;
 	return raw_force_vector;
 
+}
+
+Eigen::Vector3d XYZforcestringToForceXYZVector(const std::string& xyz_force_string)
+{
+	Eigen::Vector3d eigen_xyz_force_vector; //Inits the eigen force vector
+	std::stringstream ss(xyz_force_string);
+
+	std::string substr;
+	int i = 0;
+
+	while (std::getline(ss, substr, ',') && i < 3) {
+		eigen_xyz_force_vector[i] = std::stod(substr);
+		i++;
+	}
+
+	return eigen_xyz_force_vector;
 }
 
 std::string eigenForceToStringForce(Eigen::Vector3d& force_xyz)
@@ -154,4 +170,25 @@ Eigen::Vector3d convertCVMatToEigen_1b3(cv::Mat T_mat)
 		_T_eigen(i) = T_mat.at<double>(i, 0);
 	return _T_eigen;
 
+}
+
+std::string openCVMatToCSVString(const cv::Mat& mat) {
+	std::ostringstream oss;
+
+	for (int i = 0; i < mat.rows; ++i) {
+		for (int j = 0; j < mat.cols; ++j) {
+			oss << mat.at<double>(i, j);
+			if (!(i == mat.rows - 1 && j == mat.cols - 1)) {
+				oss << ",";  // Add comma separator
+			}
+		}
+	}
+
+	return oss.str();
+}
+
+//For cropping the ROI of the realsense frames (if wanted)
+cv::Mat cropMat(const cv::Mat& inputMat, cv::Rect cropRegion) {
+	// Perform the crop
+	return inputMat(cropRegion).clone(); // Clone to create an independent Mat
 }

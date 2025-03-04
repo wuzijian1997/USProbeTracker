@@ -132,16 +132,15 @@ public:
 	// R and T in eigen
 	Eigen::Matrix3d _R_eigen;
 	Eigen::Vector3d _T_eigen;
+	//ROI Conversions
+	void transformROIToRight(cv::Rect& left_ROI, cv::Rect& right_ROI);
+	cv::Point2f transformPointToRight(int left_point_x, int left_point_y, float assumed_depth);
 
 private:
 	std::function<void(const std::array<double, 2>&, std::array<double, 2>&)> m_imagePointToCameraUnitPlane;
 	// Marker Segmentation Methods
 	bool blobDetect(cv::Mat& im, std::vector<cv::KeyPoint>& keypoints);
-	bool contourDetect(cv::Mat& im, std::vector<cv::KeyPoint>& keypoints);
-
-	//ROI Conversions
-	void transformROIToRight(cv::Rect& left_ROI, cv::Rect& right_ROI);
-	cv::Point2f transformPointToRight(int left_point_x, int left_point_y, float assumed_depth);
+	bool contourDetect(cv::Mat& im, std::vector<cv::KeyPoint>& keypoints);	
 
 	// Debugging
 	LogLevel m_logLevel;
