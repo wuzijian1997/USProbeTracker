@@ -51,7 +51,7 @@ const float KEYPOINTS_MAX_INTENSITY = 1000.0f;
 const double NEAR_CLIP = 0.25f;
 const double FAR_CLIP = 1.3f; //Average Arm Span is 65 cm, we want the tracker to be about the same distance from eyes to hand
 const double EPIPOLAR_MATCH_Y_THRESHOLD = 4.0f; //Difference in y-direction for two points to be in same epipolar line for stereo triangulation
-const double EPIPOLAR_MATCH_X_THRESHOLD = 80.0f; //Difference in x-direction for two points to be the same in matching epipolar points
+const double EPIPOLAR_MATCH_X_THRESHOLD = 75.0f; //Difference in x-direction for two points to be the same in matching epipolar points
 const int UNDISTORTION_MAX_COUNT = 40; //Number of times undistortPoints() iterates
 const double UNDISTORTION_EPS = 1e-12; //Threshold of undistortion accuracy (either this or the max iterations are met)
 

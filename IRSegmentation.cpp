@@ -257,7 +257,6 @@ std::shared_ptr<IRSegmentation::IrDetection> IRSegmentation::findKeypointsWorldF
         std::vector<cv::Point2f> left_matched, right_matched;
 
         // Create a boolean vector to track used points in the right image
-        std::vector<bool> right_used(right_undistorted.size(), false);
 
         //Tracks which left points end up being used in left_matched
         std::vector<int> valid_left_point_indices;
@@ -271,8 +270,7 @@ std::shared_ptr<IRSegmentation::IrDetection> IRSegmentation::findKeypointsWorldF
             // Iterate over right points
             for (size_t j = 0; j < right_undistorted.size();j++) {
                 cv::Point2f right_point = right_undistorted[j];
-
-                if (!right_used[j] && std::abs(left_point.y - right_point.y) < EPIPOLAR_MATCH_Y_THRESHOLD) { // Check epipolar constraint
+                if (std::abs(left_point.y - right_point.y) < EPIPOLAR_MATCH_Y_THRESHOLD) {
                     float distance = std::abs(left_point.x - right_point.x);
 
                     if (distance < min_dist) {
@@ -286,7 +284,6 @@ std::shared_ptr<IRSegmentation::IrDetection> IRSegmentation::findKeypointsWorldF
             {
                 left_matched.push_back(left_point);
                 right_matched.push_back(right_undistorted[best_match_idx]);
-                right_used[best_match_idx] = true; // Mark the right point as used
 
                 valid_left_point_indices.push_back(i);
             }
@@ -295,10 +292,10 @@ std::shared_ptr<IRSegmentation::IrDetection> IRSegmentation::findKeypointsWorldF
 
 
         //************Step 3.5 Refine Correspondances (maybe not needed)*****************
-    /*    cv::Mat refined_left, refined_right;
-        cv::correctMatches(_F, left_matched, right_matched, refined_left, refined_right);
-        left_matched = refined_left;
-        right_matched = refined_right;*/
+        //cv::Mat refined_left, refined_right;
+        //cv::correctMatches(_F, left_matched, right_matched, refined_left, refined_right);
+        //left_matched = refined_left;
+        //right_matched = refined_right;
 
 
         //**********************Step 4: Triangulate the 3D points************************
@@ -308,8 +305,9 @@ std::shared_ptr<IRSegmentation::IrDetection> IRSegmentation::findKeypointsWorldF
             std::cout << "Error: No matched points found. Exiting triangulation"<<std::endl;
             return detection;  // Exit early
         }
-        cv::triangulatePoints(_P_left, _P_right, left_matched, right_matched, left_cam_points4d); //For a rectified image
-
+        //cv::triangulatePoints(_P_left, _P_right, left_matched, right_matched, left_cam_points4d); //For a rectified image
+        triangulatePointsIterativeLinear(_P_left, _P_right, left_matched, right_matched, left_cam_points4d);
+        //triangulatePointsIterativeEigen(_P_left, _P_right, left_matched, right_matched, left_cam_points4d);
         if (left_cam_points4d.empty()) {
             std::cout << "No Points Could Be Triangulated" << std::endl;
             return detection;  // Exit early

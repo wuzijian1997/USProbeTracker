@@ -118,8 +118,9 @@ void PoseTracker::detectionThreadFunction() {
         
 
         if (detec.irImLeft && detec.irImRight) {
+            
             auto detection = m_irTracker->findKeypointsWorldFrame(std::move(detec.irImLeft), std::move(detec.irImRight));
-
+            
             if (detection->points.empty()) {
                 setRoi(m_roi[0] * MROI_SCALE_X, m_roi[1] * MROI_SCALE_Y, m_roi[2] * MROI_SCALE_X, m_roi[3] * MROI_SCALE_Y, m_roiBuffer);
                 std::this_thread::sleep_for(1ms);
