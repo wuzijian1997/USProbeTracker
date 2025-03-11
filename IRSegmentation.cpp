@@ -247,8 +247,8 @@ std::shared_ptr<IRSegmentation::IrDetection> IRSegmentation::findKeypointsWorldF
         //It projects them onto rectified image planes
         std::vector<cv::Point2f> left_undistorted, right_undistorted;
 
-        cv::undistortPoints(left_points, left_undistorted, _left_camera_mat, _left_dist,_R_left,_P_left);
-        cv::undistortPoints(right_points, right_undistorted, _right_camera_mat, _right_dist,_R_right,_P_right);
+        cv::undistortPoints(left_points, left_undistorted, _left_camera_mat, _left_dist,_R_left,_P_left,cv::TermCriteria(cv::TermCriteria::COUNT+cv::TermCriteria::EPS, UNDISTORTION_MAX_COUNT, UNDISTORTION_EPS));
+        cv::undistortPoints(right_points, right_undistorted, _right_camera_mat, _right_dist,_R_right,_P_right, cv::TermCriteria(cv::TermCriteria::COUNT + cv::TermCriteria::EPS, UNDISTORTION_MAX_COUNT, UNDISTORTION_EPS));
 
 
 
@@ -295,7 +295,7 @@ std::shared_ptr<IRSegmentation::IrDetection> IRSegmentation::findKeypointsWorldF
 
 
         //************Step 3.5 Refine Correspondances (maybe not needed)*****************
-        /*cv::Mat refined_left, refined_right;
+    /*    cv::Mat refined_left, refined_right;
         cv::correctMatches(_F, left_matched, right_matched, refined_left, refined_right);
         left_matched = refined_left;
         right_matched = refined_right;*/

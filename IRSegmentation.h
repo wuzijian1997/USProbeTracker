@@ -33,25 +33,28 @@ const int IMAGE_Y_MINCROP = 0;
 
 //*********Contour Segmentation Constants**************
 const int CONTOUR_BIN_THRESHOLD = 100; //222
-const int COUNTOUR_MIN_AREA = 14;
-const int COUNTOUR_MAX_AREA = 250;
+const int COUNTOUR_MIN_AREA = 10;
+const int COUNTOUR_MAX_AREA = 150;
 const float CONTOUR_CONVEXITY = 0.68f;
 const float COUNTOUR_CIRCULARITY = 0.54f;
 
 //**********Blob Segmentation Constants****************
 const int BLOB_MIN_THRESHOLD = 100; //215
 const int BLOB_MAX_THRESHOLD = 255;
-const int BLOB_MIN_AREA = 14;
-const int BLOB_MAX_AREA = 250;
+const int BLOB_MIN_AREA = 6;
+const int BLOB_MAX_AREA = 60;
 const float BLOB_MIN_CONVEXITY = 0.68f;
 const int BLOB_MIN_DSTANCE_BETWEEN = 2;
 
 //*******Find Keypoints Constants***************
 const float KEYPOINTS_MAX_INTENSITY = 1000.0f;
-const double NEAR_CLIP = 0.3f;
-const double FAR_CLIP = 1.7f; //Average Arm Span is 65 cm, we want the tracker to be about the same distance from eyes to hand
-const double EPIPOLAR_MATCH_Y_THRESHOLD = 5.0f; //Difference in y-direction for two points to be in same epipolar line for stereo triangulation
-const double EPIPOLAR_MATCH_X_THRESHOLD = 40.0f; //Difference in x-direction for two points to be the same in matching epipolar points
+const double NEAR_CLIP = 0.25f;
+const double FAR_CLIP = 1.3f; //Average Arm Span is 65 cm, we want the tracker to be about the same distance from eyes to hand
+const double EPIPOLAR_MATCH_Y_THRESHOLD = 4.0f; //Difference in y-direction for two points to be in same epipolar line for stereo triangulation
+const double EPIPOLAR_MATCH_X_THRESHOLD = 80.0f; //Difference in x-direction for two points to be the same in matching epipolar points
+const int UNDISTORTION_MAX_COUNT = 40; //Number of times undistortPoints() iterates
+const double UNDISTORTION_EPS = 1e-12; //Threshold of undistortion accuracy (either this or the max iterations are met)
+
 class IRSegmentation
 {
 public:
@@ -166,7 +169,6 @@ private:
 
 	//Params for contour detection
 	double _area, _cvxArea, _cvxity, _circy;
-
 
 	//std::mutex m_paramMutex;
 	cv::SimpleBlobDetector::Params _blob_params;

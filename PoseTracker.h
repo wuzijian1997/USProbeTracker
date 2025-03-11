@@ -12,7 +12,7 @@ const float MROI_SCALE_Y = 1.0f; // / 1.25f;
 const float OUTLIER_NEAR_CLIP = NEAR_CLIP;
 const float OUTLIER_FAR_CLIP = FAR_CLIP;
 
-const float MARKER_DIAMETER_ERROR_THRESHOLD = 0.006f; //Allowable difference between actual marker diam and measured
+const float MARKER_DIAMETER_ERROR_THRESHOLD = 0.01f; //Allowable difference between actual marker diam and measured
 
 class PoseTracker
 {

@@ -192,3 +192,4 @@ cv::Mat cropMat(const cv::Mat& inputMat, cv::Rect cropRegion) {
 	// Perform the crop
 	return inputMat(cropRegion).clone(); // Clone to create an independent Mat
 }
+

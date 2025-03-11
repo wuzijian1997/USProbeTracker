@@ -28,7 +28,7 @@ const float REALSENSE_GAIN = 16.0f; //Gain of IR image, key for removing noise
 const int REALSENSE_THREAD_DELAY = 3; //The frame producer thread waits this in ms
 const int REALSENSE_RETRY = 100/ REALSENSE_THREAD_DELAY; //We restart the pipeline if it skips by this amount
 const float REALSENSE_AUTOEXPOSURE_ENABLE = 0.0f; //Disables the auto exposure
-const float REALSENSE_EXPOSURE_LEVEL = 3000.0f; //The amount of exposure
+const float REALSENSE_EXPOSURE_LEVEL = 1000.0f; //The amount of exposure
 
 //*******RealSense RGB Constants*************
 const float REALSENSE_BGR_AUTOEXPOSURE_ENABLE = 1.0f; //Enable the colour frame auto exposure
