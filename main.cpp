@@ -22,14 +22,14 @@ Eigen::Vector3d marker4(-0.03879,0.04455,0);
 auto geom= std::vector<Eigen::Vector3d>{ marker1, marker2, marker3, marker4 };
 
 //Adjustable parameters
-std::string data_root_path = "data";
+std::string data_root_path = "D:\ObstetricUS_Data";
 std::string data_participant_directory = "P0"; //Participant number
 std::string stereo_camera_calib_file = "StereoCalibration\\CalibFiles\\Calib\\calibration_params_2.yaml";
 
 bool show_us_stream = false; //Show the us stream 
 bool show_pose = true; //Show the pose on entire image
-bool show_clip_area_andkeypoints = true; //Show the clipped area around the marker, also show keypoints
-bool show_ir = true; //Shows the left ir frame
+bool show_clip_area_andkeypoints = false; //Show the clipped area around the marker, also show keypoints
+bool show_ir = false; //Shows the left ir frame
 bool show_depth = false; //shows the depth map
 std::vector<std::string> landmarkVector = { "Xyphoid","Naval","LeftMid","RightMid" };
 
@@ -167,23 +167,23 @@ int main()
 
 
 		//************************Init the Force Sensor************************
-		//Eigen::MatrixXd force_calibration_mat = readCSVToEigenMatrix("Resources/calmat.csv", 3, 13); //Read in force calibration matrix		
-		//Eigen::Vector3d force_zeroing_offset(0.0, 0.0, 0.0); //Zeroing is set to zeros for now until we do zeroing below
-		//Eigen::MatrixXd force_compensation_mat = readCSVToEigenMatrix("Resources/compensationmat_1.csv", 3, 3);
-		//std::string raw_force_string, temp_imu_string, force_string_xyz; //String that we read force readings into
-		//ShellSensorReader shellReader(SHELLSENSOR_PORTNAME, SHELLSENSOR_BAUDRATE, forcesensor_timeout,force_calibration_mat,force_zeroing_offset,force_compensation_mat); //Sets the baud rate, timeout is wait time thread before returning NaN's
-		////Initializes the force sensor, and checks if the port is connected
-		////Starts the force sensor thread
-		//if (!shellReader.initialize())
-		//{
-		//	std::cout << "Failed to Initialize Force Sensor Serial Stream" << std::endl;
-		//	return 0;
-		//}		
+		Eigen::MatrixXd force_calibration_mat = readCSVToEigenMatrix("Resources/calmat.csv", 3, 13); //Read in force calibration matrix		
+		Eigen::Vector3d force_zeroing_offset(0.0, 0.0, 0.0); //Zeroing is set to zeros for now until we do zeroing below
+		Eigen::MatrixXd force_compensation_mat = readCSVToEigenMatrix("Resources/compensationmat_1.csv", 3, 3);
+		std::string raw_force_string, temp_imu_string, force_string_xyz; //String that we read force readings into
+		ShellSensorReader shellReader(SHELLSENSOR_PORTNAME, SHELLSENSOR_BAUDRATE, forcesensor_timeout,force_calibration_mat,force_zeroing_offset,force_compensation_mat); //Sets the baud rate, timeout is wait time thread before returning NaN's
+		//Initializes the force sensor, and checks if the port is connected
+		//Starts the force sensor thread
+		if (!shellReader.initialize())
+		{
+			std::cout << "Failed to Initialize Force Sensor Serial Stream" << std::endl;
+			return 0;
+		}		
 		
 
 
 		//***********************Init the US Frame Grabber*********************
-		//USVideoStreaming USStreamer(show_us_stream, us_timeout); //Shows US stream when true, timeout for frabbing from the us thread
+		USVideoStreaming USStreamer(show_us_stream, us_timeout); //Shows US stream when true, timeout for frabbing from the us thread
 
 		//********************Init Vars**********************
 		int realsense_frame_count = -1; //-1 Denotes frames haven't started
@@ -196,7 +196,6 @@ int main()
 
 		//Init the clock recording time
 		auto current_time = std::chrono::high_resolution_clock::now();
-		auto start_time = std::chrono::high_resolution_clock::now();
 		std::chrono::duration<float> elapsed_time;
 		float elapsed_seconds;
 
@@ -207,13 +206,13 @@ int main()
 		
 
 		//***********User Input for Zeroing the Force Vector**********
-		//std::cout << "~~~~~~~~Move ultrasound probe to zero forces and press Enter to log~~~~~~~~\n";
-		//std::cin.get(); //Wait for user to press enter
-		//shellReader.getForceString(raw_force_string, force_string_xyz);
-		////Updates the zeroing offset to the recorded force value
-		//shellReader._force_zeroing_offset = XYZforcestringToForceXYZVector(force_string_xyz);
-		//force_zeroing_offset = shellReader._force_zeroing_offset;
-		//shellReader.getForceString(raw_force_string, force_string_xyz); //Extra call to get rid of spurious measurement due to threading
+		std::cout << "~~~~~~~~Move ultrasound probe to zero forces and press Enter to log~~~~~~~~\n";
+		std::cin.get(); //Wait for user to press enter
+		shellReader.getForceString(raw_force_string, force_string_xyz);
+		//Updates the zeroing offset to the recorded force value
+		shellReader._force_zeroing_offset = XYZforcestringToForceXYZVector(force_string_xyz);
+		force_zeroing_offset = shellReader._force_zeroing_offset;
+		shellReader.getForceString(raw_force_string, force_string_xyz); //Extra call to get rid of spurious measurement due to threading
 
 		//Start the realsense thread
 		realsense_camera.start();
@@ -221,15 +220,15 @@ int main()
 		//**********************Init Datalogger***********************
 		//Initializes the datalogger object, first string is root directory second string is subdirectory
 		//defaults it to data/PXX where XX is the most recent participant number
-		/*Datalogger datalogger(data_root_path, data_participant_directory, force_calibration_mat, force_zeroing_offset, force_compensation_mat,
+		Datalogger datalogger(data_root_path, data_participant_directory, force_calibration_mat, force_zeroing_offset, force_compensation_mat,
 			left_camera_intrinsics, right_camera_intrinsics, R_mat_str, T_mat_str, E_mat_str, F_mat_str,
-			realsense_camera._depth_scale, REALSENSE_WIDTH, REALSENSE_HEIGHT, REALSENSE_FPS, USStreamer._windowWidth_original, USStreamer._windowHeight_original, REALSENSE_FPS, ir_segmenter);*/
+			realsense_camera._depth_scale, REALSENSE_WIDTH, REALSENSE_HEIGHT, REALSENSE_FPS, USStreamer._windowWidth_original, USStreamer._windowHeight_original, REALSENSE_FPS, ir_segmenter);
 
 		//******************Anatomy Landmarks Prompts*****************
-		//std::cout << "~~~~~~~~Move ultrasound probe to collect landmarks~~~~~~~~\n";
-		//std::cout << "Press Enter to record pose of: " << landmarkVector[landmark_counter] <<"\n";
+		std::cout << "~~~~~~~~Move ultrasound probe to collect landmarks~~~~~~~~\n";
+		std::cout << "Press Enter to record pose of: " << landmarkVector[landmark_counter] <<"\n";
 		
-
+		auto start_time = std::chrono::high_resolution_clock::now();
 		while (true)
 		{		
 			last_loop_time = std::chrono::steady_clock::now();
@@ -269,8 +268,8 @@ int main()
 
 				//************************Get Force/IMU************************
 				//last_time = std::chrono::steady_clock::now();
-				//shellReader.getForceString(raw_force_string,force_string_xyz); //Gets most recent force string
-				//shellReader.getTempIMUString(temp_imu_string); //Gets most recent Temperature + IMU String
+				shellReader.getForceString(raw_force_string,force_string_xyz); //Gets most recent force string
+				shellReader.getTempIMUString(temp_imu_string); //Gets most recent Temperature + IMU String
 
 				//std::cout << "Raw Force Reading: " << raw_force_string << ", XYZ Force Reading: " << force_string_xyz << std::endl;
 
@@ -280,16 +279,16 @@ int main()
 
 				//************************Get US Frame*************************
 				//last_time = std::chrono::steady_clock::now();
-				//cv::Mat usFrame = USStreamer.getFrame(); //Gets most recent us frame
-				//if (!usFrame.empty()) //If the ultraasound frame is not empty, we write the US frame and increment us counter
-				//{
-				//	us_frame_count++;
-				//	datalogger.writeUSFrame(usFrame);
-				//	if (show_us_stream)
-				//	{
-				//		USStreamer.showFrame();
-				//	}
-				//}
+				cv::Mat usFrame = USStreamer.getFrame(); //Gets most recent us frame
+				if (!usFrame.empty()) //If the ultraasound frame is not empty, we write the US frame and increment us counter
+				{
+					us_frame_count++;
+					datalogger.writeUSFrame(usFrame);
+					if (show_us_stream)
+					{
+						USStreamer.showFrame();
+					}
+				}
 
 				/*curr_time = std::chrono::steady_clock::now();
 				elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_time - last_time).count();
@@ -327,9 +326,9 @@ int main()
 
 				//**********************Logging RealSense Frames*************************
 				//last_time = std::chrono::steady_clock::now();
-				//datalogger.writeDepthFrame(depth_mat); //Writes depth frame
-				//datalogger.writeIRFrames(ir_mat_left, ir_mat_right); //Writes left/right ir
-				//datalogger.writeColourFrame(colour_frame);
+				datalogger.writeDepthFrame(depth_mat); //Writes depth frame
+				datalogger.writeIRFrames(ir_mat_left, ir_mat_right); //Writes left/right ir
+				datalogger.writeColourFrame(colour_frame);
 				/*curr_time = std::chrono::steady_clock::now();
 				elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_time - last_time).count();
 				std::cout << "Frame Writing dt: " << elapsed_ms << std::endl;*/
@@ -359,25 +358,25 @@ int main()
 				std::cout << "Pose dt: " << elapsed_ms << std::endl;
 
 				//********************Checking for Enter Press for Landmarks*****************
-				//if (_kbhit() && (_getch() == '\r')&& (landmark_counter<MAX_LANDMARKS)) //if enter is pressed, record landmark in landmark_string
-				//{
-				//	landmark_string = landmarkVector[landmark_counter];
-				//	landmark_counter++;
-				//	if (landmark_counter < MAX_LANDMARKS)
-				//	{
-				//		std::cout << "Captured Landmark" << std::endl;
-				//		std::cout << "Press Enter to record pose of: " << landmarkVector[landmark_counter] << "\n";
-				//	}
-				//	else {
-				//		std::cout << "Captured All Landmarks" << "\n";
-				//		std::cout << "~~~~~~~~~~~~~~~~~~~~~~" << "\n";
-				//	}
+				if (_kbhit() && (_getch() == '\r')&& (landmark_counter<MAX_LANDMARKS)) //if enter is pressed, record landmark in landmark_string
+				{
+					landmark_string = landmarkVector[landmark_counter];
+					landmark_counter++;
+					if (landmark_counter < MAX_LANDMARKS)
+					{
+						std::cout << "Captured Landmark" << std::endl;
+						std::cout << "Press Enter to record pose of: " << landmarkVector[landmark_counter] << "\n";
+					}
+					else {
+						std::cout << "Captured All Landmarks" << "\n";
+						std::cout << "~~~~~~~~~~~~~~~~~~~~~~" << "\n";
+					}
 
-				//}
-				//else
-				//{
-				//	landmark_string = "-1";
-				//}
+				}
+				else
+				{
+					landmark_string = "-1";
+				}
 
 
 				//************************Logging Pose/Force/IMU Data*************************
@@ -387,9 +386,9 @@ int main()
 				auto current_time = std::chrono::high_resolution_clock::now();
 				elapsed_time = current_time - start_time;
 				elapsed_seconds = elapsed_time.count();
-				//realsense_frame_count++; //Increments the depth frame counter
+				realsense_frame_count++; //Increments the depth frame counter
 				////Writes pose/force to scandata_datetime.csv
-				//datalogger.writeCSVRow(elapsed_seconds, realsense_frame_count, us_frame_count, cam_T_us, raw_force_string, force_string_xyz, temp_imu_string, landmark_string);
+				datalogger.writeCSVRow(elapsed_seconds, realsense_frame_count, us_frame_count, cam_T_us, raw_force_string, force_string_xyz, temp_imu_string, landmark_string);
 				
 				/*curr_time = std::chrono::steady_clock::now();
 				elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_time - last_time).count();
@@ -397,9 +396,9 @@ int main()
 				
 				
 
-				/*curr_loop_time = std::chrono::steady_clock::now();
+				curr_loop_time = std::chrono::steady_clock::now();
 				elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_loop_time - last_loop_time).count();
-				std::cout << "Loop Time dt: " << elapsed_ms << std::endl;*/
+				std::cout << "Loop Time dt: " << elapsed_ms << std::endl;
 
 				//************************Displaying Frames********************
 				if (show_pose) //Shows the pose
