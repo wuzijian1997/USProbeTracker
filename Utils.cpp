@@ -194,10 +194,7 @@ cv::Mat cropMat(const cv::Mat& inputMat, cv::Rect cropRegion) {
 }
 
 
-//Iterative midpoint method for stereo triangulation
-#include <opencv2/opencv.hpp>
-#include <iostream>
-
+//These triangulation methods come from: https://github.com/PavelNajman/Triangulation/blob/master/IterativeLS.cpp
 // Iterative Midpoint Triangulation Function
 void triangulatePointsIterativeLinear(
 	const cv::Mat& P0, const cv::Mat& P1,
