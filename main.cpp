@@ -22,8 +22,8 @@ Eigen::Vector3d marker4(-0.03879,0.04455,0);
 auto geom= std::vector<Eigen::Vector3d>{ marker1, marker2, marker3, marker4 };
 
 //Adjustable parameters
-std::string data_root_path = "D:\ObstetricUS_Data";
-std::string data_participant_directory = "Phantom_0"; //Participant number
+std::string data_root_path = "D:\ALIGN_PhantomData";
+std::string data_participant_directory = "Phantom_14"; //Participant number
 std::string stereo_camera_calib_file = "StereoCalibration\\CalibFiles\\Calib\\calibration_params_2.yaml";
 
 bool show_us_stream = false; //Show the us stream 
@@ -31,7 +31,7 @@ bool show_pose = true; //Show the pose on entire image
 bool show_clip_area_andkeypoints = false; //Show the clipped area around the marker, also show keypoints
 bool show_ir = false; //Shows the left ir frame
 bool show_depth = true; //shows the depth map
-std::vector<std::string> landmarkVector = { "BikiniLine","Naval","Fundus","Xyphoid","LeftLateral","RightLateral"};
+std::vector<std::string> landmarkVector = {"PubicBone","Fundus","RightLateral","LeftLateral"};
 
 //Semi-Permanent Setup Parameters
 int realsense_timeout = 35; //Realsense Frame Grabber Returns False if waiting more than 35 ms
