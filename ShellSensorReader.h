@@ -1,6 +1,6 @@
 #pragma once
 #include "IRSegmentation.h" //Has a bunch of includes
-// #include <Windows.h>
+#include <Windows.h>
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -25,12 +25,12 @@ public:
 	~ShellSensorReader();
 
 	bool initialize(); //Inits the port connection and serial interface setup
-	
+
 	void getForceString(std::string& force_string, std::string& force_xyz_string);
 	void getTempIMUString(std::string& temp_imu_string);
 
 	Eigen::Vector3d _force_zeroing_offset; //We manually change this during zeroing
-	
+
 
 private:
 	std::wstring _portName;
@@ -43,7 +43,7 @@ private:
 	void readLines(); //Reads a lines of force sensors up until "\n", runs on one thread
 
 	//Values for converting raw force values to xyz force vals
-	Eigen::MatrixXd _force_calibration_mat;	
+	Eigen::MatrixXd _force_calibration_mat;
 	Eigen::MatrixXd _force_compensation_mat;
 																	  //Threading setup
 	std::queue<std::string> _forceSenseQueue, _tempImuQueue,_forceXYZQueue; //Two queues that the thread pushes shell sensor readings to, depends on line read

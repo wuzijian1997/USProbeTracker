@@ -43,7 +43,7 @@ ShellSensorReader::~ShellSensorReader()
 //Configures the serial handle, serial interface settings, and starts the threads
 bool ShellSensorReader::initialize()
 {
-	_serialHandle = CreateFile(_portName.c_str(), GENERIC_READ | GENERIC_WRITE, 0, nullptr, OPEN_EXISTING, 0, nullptr);
+	_serialHandle = CreateFile(reinterpret_cast<LPCSTR>(_portName.c_str()), GENERIC_READ | GENERIC_WRITE, 0, nullptr, OPEN_EXISTING, 0, nullptr);
 	
 	//Checks that the serial port is opened
 	if (_serialHandle == INVALID_HANDLE_VALUE)

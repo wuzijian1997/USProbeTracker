@@ -17,7 +17,7 @@ USVideoStreaming::USVideoStreaming(bool show_stream, int timeout)
 	_bi{},
 	_timeout(timeout)
 {
-	_windowHandle = FindWindow(0, WINDOWDISPLAYNAME.c_str());
+	_windowHandle = FindWindow(0, reinterpret_cast<LPCSTR>(WINDOWDISPLAYNAME.c_str()));
 	if (!_windowHandle)
 	{
 		std::cout<<"Error: Could Not find window with name: " << WINDOWDISPLAYNAME.c_str() << "." << std::endl;

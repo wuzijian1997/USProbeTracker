@@ -18,7 +18,7 @@ message(STATUS "USER_HOME_DIR: ${USER_HOME_DIR}")
 # Find dependencies
 find_package(Eigen3 3.4 REQUIRED)
 find_package(Catch2 3.8 REQUIRED)
-find_package(realsense2 2.54 REQUIRED)
+find_package(realsense2 2.56 REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(zstd REQUIRED)
 

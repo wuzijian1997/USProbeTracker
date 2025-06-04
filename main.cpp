@@ -8,7 +8,7 @@
 #include "IRSegmentation.h" //Segments the IR markers in the RealSense image
 #include "Utils.h" //Utility functions (i.e. file conversion methods
 #include "Datalogger.h" //Logs scanning data to .csv
-// #include <conio.h> // For non-blocking keyboard input (_kbhit(), _getch())
+#include <conio.h> // For non-blocking keyboard input (_kbhit(), _getch())
 
 
 
@@ -22,7 +22,7 @@ Eigen::Vector3d marker4(-0.03879,0.04455,0);
 auto geom= std::vector<Eigen::Vector3d>{ marker1, marker2, marker3, marker4 };
 
 //Adjustable parameters
-std::string data_root_path = "D:\ALIGN_PhantomData";
+std::string data_root_path = "D:\\ALIGN_PhantomData";
 std::string data_participant_directory = "Phantom_14"; //Participant number
 std::string stereo_camera_calib_file = "StereoCalibration\\CalibFiles\\Calib\\calibration_params_2.yaml";
 
