@@ -2,7 +2,7 @@
 #include "IRSegmentation.h" //Has a bunch of includes
 #include "RealSense.h"
 #include "Utils.h"
-#include <Windows.h>
+// #include <Windows.h>
 #include <iostream>
 #include <fstream>
 #include <sstream>

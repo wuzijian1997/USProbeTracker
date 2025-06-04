@@ -1,0 +1,21 @@
+{
+  "name" : "usprobetracker",
+  "version-string" : "1.0.0",
+  "builtin-baseline" : "3421943bfdef53a1d16404e98b5b487112c59df2",
+  "dependencies" : [ {
+    "name" : "opencv",
+    "version>=" : "4.8.0#1"
+  }, {
+    "name" : "zstd",
+    "version>=" : "1.5.6"
+  }, {
+    "name" : "catch2",
+    "version>=" : "3.7.0"
+  }, {
+    "name" : "eigen3",
+    "version>=" : "3.4.0#5"
+  }, {
+    "name" : "realsense2",
+    "version>=" : "2.54.2#2"
+  } ]
+}

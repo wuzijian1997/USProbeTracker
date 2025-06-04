@@ -1,6 +1,6 @@
 #pragma once
 #include "IRSegmentation.h" //Bunch of includes
-#include <Windows.h>
+// #include <Windows.h>
 #include <condition_variable>
 #include <queue>
 

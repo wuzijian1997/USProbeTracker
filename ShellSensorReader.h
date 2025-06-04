@@ -1,6 +1,6 @@
 #pragma once
 #include "IRSegmentation.h" //Has a bunch of includes
-#include <Windows.h>
+// #include <Windows.h>
 #include <iostream>
 #include <fstream>
 #include <sstream>

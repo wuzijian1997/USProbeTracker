@@ -8,7 +8,7 @@
 #include "IRSegmentation.h" //Segments the IR markers in the RealSense image
 #include "Utils.h" //Utility functions (i.e. file conversion methods
 #include "Datalogger.h" //Logs scanning data to .csv
-#include <conio.h> // For non-blocking keyboard input (_kbhit(), _getch())
+// #include <conio.h> // For non-blocking keyboard input (_kbhit(), _getch())
 
 
 
