@@ -60,7 +60,4 @@ private:
 	std::shared_ptr<std::thread> _frame_Thread;
 	std::atomic<bool> _runFrame_Thread=true;
 	//std::atomic<bool> _hasNew_Frame=false; //Do we have a new frame
-
-
 };
-

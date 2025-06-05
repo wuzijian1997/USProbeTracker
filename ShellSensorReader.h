@@ -8,6 +8,7 @@
 #include <condition_variable>
 #include <queue>
 #include "Utils.h"
+#include "include/configs.hpp"
 
 const DWORD SHELLSENSOR_BAUDRATE = CBR_115200;
 const std::wstring SHELLSENSOR_PORTNAME = L"COM9";
@@ -53,6 +54,8 @@ private:
 	std::atomic<bool> _runThread = true;
 	std::string _forceSenseTag = FORCESENSOR_TAG;
 	std::string _tempImuTag = TEMPIMU_TAG;
+
+	bool enableForceSensor{false}; // Config entry to enable force sensor reading
 
 };
 

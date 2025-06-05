@@ -3,7 +3,9 @@
 
 ShellSensorReader::ShellSensorReader(const std::wstring& portName, DWORD baudRate,int timeout, Eigen::MatrixXd force_calibration_mat, Eigen::Vector3d force_zeroing_offset, Eigen::MatrixXd force_compensation_mat)
 	: _portName(portName), _baudRate(baudRate),_timeout(timeout), _force_calibration_mat(force_calibration_mat),_force_zeroing_offset(force_zeroing_offset),_force_compensation_mat(force_compensation_mat)
-{}
+{
+	enableForceSensor = ConfigInstance::GetInstance()->core().enableForceSensor;
+}
 
 ShellSensorReader::~ShellSensorReader()
 {
@@ -43,6 +45,11 @@ ShellSensorReader::~ShellSensorReader()
 //Configures the serial handle, serial interface settings, and starts the threads
 bool ShellSensorReader::initialize()
 {
+	if (!enableForceSensor) {
+		std::cout << "Force sensor reading is disabled in the config file." << std::endl;
+		return true;
+	}
+
 	_serialHandle = CreateFile(reinterpret_cast<LPCSTR>(_portName.c_str()), GENERIC_READ | GENERIC_WRITE, 0, nullptr, OPEN_EXISTING, 0, nullptr);
 	
 	//Checks that the serial port is opened
@@ -235,7 +242,6 @@ void ShellSensorReader::getForceString(std::string& force_string,std::string& fo
 		force_xyz_string = "NaN,NaN,NaN";
 	}
 	lock.unlock();
-	return;
 }
 
 void ShellSensorReader::getTempIMUString(std::string& temp_imu_string)
@@ -260,8 +266,6 @@ void ShellSensorReader::getTempIMUString(std::string& temp_imu_string)
 		temp_imu_string = SIX_NaNs;
 	}
 	lock.unlock();
-	return;
-
 }
 
 

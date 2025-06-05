@@ -62,6 +62,7 @@ target_include_directories(USProbeTracker PRIVATE
         ${realsense2_INCLUDE_DIR}
         ${OpenCV_INCLUDE_DIRS}
         ${ZSTD_INCLUDE_DIRS}
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
 target_link_libraries(USProbeTracker
@@ -75,9 +76,16 @@ target_link_libraries(USProbeTracker
 
 add_subdirectory(StereoCalibration)
 
-# copy over various resource files
+# copy calibration files
 add_custom_command(TARGET USProbeTracker POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
         ${CMAKE_CURRENT_SOURCE_DIR}/StereoCalibration/CalibFiles
         $<TARGET_FILE_DIR:USProbeTracker>/StereoCalibration/CalibFiles
+)
+
+# copy configs files
+add_custom_command(TARGET USProbeTracker POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
+        ${CMAKE_CURRENT_SOURCE_DIR}/configs
+        $<TARGET_FILE_DIR:USProbeTracker>/configs
 )

@@ -10,8 +10,8 @@
 #include "Datalogger.h" //Logs scanning data to .csv
 #include <conio.h> // For non-blocking keyboard input (_kbhit(), _getch())
 
-#include "include/configs.hpp"
-
+#include "configs.hpp"
+#include "logger.hpp"
 
 //**************Init Vars*************
 
@@ -63,6 +63,10 @@ inline std::string getCurrentDirectory()
 
 int main()
 {
+	// setup spdlog
+	setupMultiSinkSpdlog("MainLog");
+	setupDataSinkSpdlog("DataLog");
+
 	//*******************Init RealSense Camera Parameters********************
 	//Inits realsense camera object
 	RealSense realsense_camera(realsense_timeout); //timeout is the amount of time we wait for realsense thread to update the data
