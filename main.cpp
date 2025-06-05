@@ -54,6 +54,12 @@ std::chrono::steady_clock::time_point curr_loop_time;
 std::chrono::steady_clock::time_point curr_time;
 
 int i;
+
+inline std::string getCurrentDirectory()
+{
+	return std::filesystem::current_path().string();
+}
+
 int main()
 {
 	//*******************Init RealSense Camera Parameters********************
@@ -91,7 +97,9 @@ int main()
 		//***************Init IR Segmentation Parameters and Camera Intrinsics***********************
 		
 		//*****Gets the camera intrinsics
-		cv::FileStorage fs(stereo_camera_calib_file, cv::FileStorage::READ);
+		// get the current source directory
+		std::string current_directory = getCurrentDirectory();
+		cv::FileStorage fs(current_directory + "\\" + stereo_camera_calib_file, cv::FileStorage::READ);
 		if (!fs.isOpened())
 		{
 			std::cout << "Unable to open calibration file" << std::endl;

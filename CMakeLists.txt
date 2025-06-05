@@ -69,3 +69,10 @@ target_link_libraries(USProbeTracker
 )
 
 add_subdirectory(StereoCalibration)
+
+# copy over various resource files
+add_custom_command(TARGET USProbeTracker POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
+        ${CMAKE_CURRENT_SOURCE_DIR}/StereoCalibration/CalibFiles
+        $<TARGET_FILE_DIR:USProbeTracker>/StereoCalibration/CalibFiles
+)
