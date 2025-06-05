@@ -1,0 +1,58 @@
+---
+Checks: '-*,
+                  bugprone-*,
+                  bugprone-dangling-handle,
+                  bugprone-infinite-loop,
+                  bugprone-unused-*,
+                  -bugprone-integer-division,
+                  -bugprone-narrowing-conversions,
+                  clang-analyzer-*,
+                  clang-analyzer-core.*,
+                  clang-analyzer-cplusplus.InnerProduct,
+                  clang-analyzer-cplusplus.NewDelete,
+                  clang-analyzer-cplusplus.NewDeleteLeaks,
+                  clang-analyzer-cplusplus.SelfAssignment,
+                  clang-analyzer-deadcode.DeadStores,
+                  cppcoreguidelines-avoid-goto,
+                  -cppcoreguidelines-avoid-magic-numbers,
+                  cppcoreguidelines-init-variables,
+                  -cppcoreguidelines-interfaces-global-init,
+                  cppcoreguidelines-narrowing-conversions,
+                  cppcoreguidelines-pro-type-member-init,
+                  cppcoreguidelines-pro-type-reinterpret-cast,
+                  -cppcoreguidelines-pro-type-union-access,
+                  -cppcoreguidelines-slicing,
+                  performance-*,
+                  misc-*,
+                  -misc-unused-parameters,
+                  modernize-*,
+                  -modernize-avoid-c-arrays,
+                  -modernize-deprecated-headers,
+                  -modernize-use-auto,
+                  -modernize-use-using,
+                  -modernize-use-nullptr,
+                  -modernize-use-trailing-return-type,
+                  '
+WarningsAsErrors: ''
+HeaderFilterRegex: '.*'
+AnalyzeTemporaryDtors: false
+FormatStyle: google
+CheckOptions:
+  - key: bugprone-dangling-handle.HandleClasses
+    value: 'std::basic_string_view;std::experimental::basic_string_view'
+  - key: cppcoreguidelines-pro-type-member-init.IgnoreArrays
+    value: '0'
+  - key: modernize-loop-convert.MaxCopySize
+    value: '16'
+  - key: modernize-loop-convert.MinConfidence
+    value: reasonable
+  - key: modernize-loop-convert.NamingStyle
+    value: CamelCase
+  - key: modernize-pass-by-value.IncludeStyle
+    value: llvm
+  - key: modernize-replace-auto-ptr.IncludeStyle
+    value: llvm
+  - key: modernize-use-nullptr.NullMacros
+    value: 'NULL'
+...
+
