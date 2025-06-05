@@ -10,6 +10,7 @@
 #include "Datalogger.h" //Logs scanning data to .csv
 #include <conio.h> // For non-blocking keyboard input (_kbhit(), _getch())
 
+#include "include/configs.hpp"
 
 
 //**************Init Vars*************

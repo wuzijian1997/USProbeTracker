@@ -21,6 +21,8 @@ find_package(Catch2 3.8 REQUIRED)
 find_package(realsense2 2.56 REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(zstd REQUIRED)
+find_package(toml11 CONFIG REQUIRED)
+find_package(spdlog CONFIG REQUIRED)
 
 set(SOURCES
         Datalogger.cpp
@@ -47,6 +49,7 @@ set(HEADERS
         ShellSensorReader.h
         USVideoStreaming.h
         Utils.h
+        include/configs.hpp
 )
 
 # Add your source files here
@@ -66,6 +69,8 @@ target_link_libraries(USProbeTracker
         realsense2::realsense2
         ${OpenCV_LIBS}
         zstd::libzstd
+        toml11::toml11
+        spdlog::spdlog_header_only
 )
 
 add_subdirectory(StereoCalibration)
