@@ -11,7 +11,7 @@
 #include <conio.h> // For non-blocking keyboard input (_kbhit(), _getch())
 
 #include "configs.hpp"
-#include "logger.hpp"
+#include "loggers.hpp"
 
 //**************Init Vars*************
 
@@ -219,7 +219,7 @@ int main()
 		
 
 		//***********User Input for Zeroing the Force Vector**********
-		std::cout << "~~~~~~~~Move ultrasound probe to zero forces and press Enter to log~~~~~~~~\n";
+		spdlog::info("~~~~~~~~Move ultrasound probe to zero forces and press Enter to log~~~~~~~~");
 		std::cin.get(); //Wait for user to press enter
 		shellReader.getForceString(raw_force_string, force_string_xyz);
 		//Updates the zeroing offset to the recorded force value

@@ -46,7 +46,7 @@ ShellSensorReader::~ShellSensorReader()
 bool ShellSensorReader::initialize()
 {
 	if (!enableForceSensor) {
-		std::cout << "Force sensor reading is disabled in the config file." << std::endl;
+		spdlog::info("Force sensor reading is disabled in the config file.");
 		return true;
 	}
 

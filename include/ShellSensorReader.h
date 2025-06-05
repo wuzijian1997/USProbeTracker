@@ -8,7 +8,7 @@
 #include <condition_variable>
 #include <queue>
 #include "Utils.h"
-#include "include/configs.hpp"
+#include "configs.hpp"
 
 const DWORD SHELLSENSOR_BAUDRATE = CBR_115200;
 const std::wstring SHELLSENSOR_PORTNAME = L"COM9";

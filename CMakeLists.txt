@@ -24,32 +24,42 @@ find_package(zstd REQUIRED)
 find_package(toml11 CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
 
+
+set(SOURCE_DIR
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
 set(SOURCES
-        Datalogger.cpp
-        IRSegmentation.cpp
-        main.cpp
-        pch.cpp
-        PoseTracker.cpp
-        RealSense.cpp
-        ShellSensorReader.cpp
-        USVideoStreaming.cpp
-        Utils.cpp
+        ${SOURCE_DIR}/Datalogger.cpp
+        ${SOURCE_DIR}/IRSegmentation.cpp
+        ${SOURCE_DIR}/main.cpp
+        ${SOURCE_DIR}/pch.cpp
+        ${SOURCE_DIR}/PoseTracker.cpp
+        ${SOURCE_DIR}/RealSense.cpp
+        ${SOURCE_DIR}/ShellSensorReader.cpp
+        ${SOURCE_DIR}/USVideoStreaming.cpp
+        ${SOURCE_DIR}/Utils.cpp
+)
+
+set(HEADER_DIR
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
 set(HEADERS
-        atomicops.h
-        Datalogger.h
-        framework.h
-        IRSegmentation.h
-        log.h
-        pch.h
-        PoseTracker.h
-        readerwriterqueue.h
-        RealSense.h
-        ShellSensorReader.h
-        USVideoStreaming.h
-        Utils.h
-        include/configs.hpp
+        ${HEADER_DIR}/atomicops.h
+        ${HEADER_DIR}/Datalogger.h
+        ${HEADER_DIR}/framework.h
+        ${HEADER_DIR}/IRSegmentation.h
+        ${HEADER_DIR}/log.h
+        ${HEADER_DIR}/pch.h
+        ${HEADER_DIR}/PoseTracker.h
+        ${HEADER_DIR}/readerwriterqueue.h
+        ${HEADER_DIR}/RealSense.h
+        ${HEADER_DIR}/ShellSensorReader.h
+        ${HEADER_DIR}/USVideoStreaming.h
+        ${HEADER_DIR}/Utils.h
+        ${HEADER_DIR}/configs.hpp
+        ${HEADER_DIR}/loggers.hpp
 )
 
 # Add your source files here

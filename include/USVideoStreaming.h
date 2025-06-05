@@ -8,7 +8,7 @@
 // Also check if current frame is different than previous and update only when change
 
 //*********Constants************
-const std::wstring WINDOWDISPLAYNAME = L"SM-T870"; //Name of window that scrcpy is writing to
+const std::string WINDOWDISPLAYNAME = "SM-T870"; //Name of window that scrcpy is writing to
 const std::string USSTREAMDISPLAYNAME = "Ultrasound Stream"; //Name of window that this application writes to
 
 
