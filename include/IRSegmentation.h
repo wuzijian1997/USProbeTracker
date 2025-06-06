@@ -11,6 +11,7 @@
 #include <opencv2/imgproc.hpp>
 // #include <opencv2/world.hpp>
 #include <opencv2/core.hpp>
+#include <opencv2/core/mat.hpp>
 #include <opencv2/videoio.hpp>
 //RealSense Includes
 #include <librealsense2/rs.hpp>

@@ -1,7 +1,6 @@
 #include "USVideoStreaming.h"
-
 #include <spdlog/spdlog.h>
-
+#include "configs.hpp"
 
 //****************Setup Methods******************
 USVideoStreaming::USVideoStreaming(bool show_stream, int timeout)
@@ -19,10 +18,12 @@ USVideoStreaming::USVideoStreaming(bool show_stream, int timeout)
 	_bi{},
 	_timeout(timeout)
 {
-	_windowHandle = FindWindow(0, WINDOWDISPLAYNAME.c_str());
+    const std::string winName = gCoreConfig.usWindowDisplayName;
+    spdlog::info("Initializing USVideoStreaming with window name: {}", winName);
+	_windowHandle = FindWindow(0, winName.c_str());
 	if (!_windowHandle)
 	{
-		spdlog::warn("Error: Could Not find window with name: {}", WINDOWDISPLAYNAME.c_str());
+		spdlog::warn("Error: Could Not find window with name: {}", winName.c_str());
 		//Sets recording and showing booleans to false
 		_showStream = false;
 		return;
@@ -41,7 +42,7 @@ USVideoStreaming::USVideoStreaming(bool show_stream, int timeout)
 	POINT topLeft = { rect.left, rect.top };
 	ClientToScreen(_windowHandle, &topLeft);
 
-	_windowWidth_original = rect.right - rect.left;	
+	_windowWidth_original = rect.right - rect.left;
 	_windowHeight_original = rect.bottom - rect.top;
 	/*_screenX = rect.left;
 	_screenY = rect.top;*/
@@ -74,7 +75,7 @@ USVideoStreaming::USVideoStreaming(bool show_stream, int timeout)
 
 	//Captures the screen to a bitmap
 	//BitBlt(_hwindowCompatibleDC, 0, 0, _windowWidth, _windowHeight, _hwindowDC, 0, 0, SRCCOPY);
-	
+
 	_showStream = show_stream;
 	//Inits the opencv window
 	if (_showStream) //If it is true, we create the window
@@ -110,7 +111,7 @@ USVideoStreaming::~USVideoStreaming()
 	DeleteDC(_hwindowCompatibleDC);
 	ReleaseDC(_windowHandle, _hwindowDC);
 	cv::destroyWindow(USSTREAMDISPLAYNAME);
-	
+
 
 	while (!_frameQueue.empty()) {
 		_frameQueue.pop();
@@ -145,7 +146,7 @@ void USVideoStreaming::ReadFrames()
 	{
 
 		//Gets the new frame in "USFrame"
-		
+
 		//StretchBlt(_hwindowCompatibleDC, 0, 0, _windowWidth, _windowHeight, _hwindowDC, 0, 0, _windowWidth, _windowHeight, SRCCOPY);
 		BitBlt(_hwindowCompatibleDC, 0, 0, _windowWidth, _windowHeight, _hwindowDC, 0, 0, SRCCOPY);
 		GetDIBits(_hwindowCompatibleDC, _hbwindow, 0, _windowHeight, USFrameScaled.data, (BITMAPINFO*)&_bi, DIB_RGB_COLORS);
@@ -167,7 +168,7 @@ void USVideoStreaming::ReadFrames()
 		_frameArrivedVar.notify_one();
 
 
-	}	
+	}
 
 }
 // Gets most recent frame from the thread

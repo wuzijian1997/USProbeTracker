@@ -20,3 +20,7 @@ git pull # update to the latest master
 ```bash
 C:\Users\{$USER}\.vcpkg-clion\vcpkg\vcpkg.exe x-update-baseline
 ```
+
+Features of specific libraries
+- [opencv](https://vcpkg.io/en/package/opencv)
+  - "features" : [ "gstreamer", "ffmpeg", "tbb", "openmp", "msmf", "highgui"]

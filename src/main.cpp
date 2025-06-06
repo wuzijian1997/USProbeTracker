@@ -23,11 +23,11 @@ Eigen::Vector3d marker4(-0.03879,0.04455,0);
 auto geom= std::vector<Eigen::Vector3d>{ marker1, marker2, marker3, marker4 };
 
 //Adjustable parameters
-std::string data_root_path = "D:\\ALIGN_PhantomData";
+std::string data_root_path = "\\ALIGN_PhantomData";
 std::string data_participant_directory = "Phantom_14"; //Participant number
-std::string stereo_camera_calib_file = "StereoCalibration\\CalibFiles\\Calib\\calibration_params_2.yaml";
+std::string stereo_camera_calib_file = R"(StereoCalibration\CalibFiles\Calib\calibration_params_2.yaml)";
 
-bool show_us_stream = false; //Show the us stream 
+bool show_us_stream = false; //Show the us stream
 bool show_pose = true; //Show the pose on entire image
 bool show_clip_area_andkeypoints = false; //Show the clipped area around the marker, also show keypoints
 bool show_ir = false; //Shows the left ir frame
@@ -38,7 +38,7 @@ std::vector<std::string> landmarkVector = {"PubicBone","Fundus","RightLateral","
 int realsense_timeout = 35; //Realsense Frame Grabber Returns False if waiting more than 35 ms
 
 float pose_markerDiameter = 0.011f; //IR Marker diameter in meters
-bool pose_filterJumps = true; //Filter jumps in pose tracking 
+bool pose_filterJumps = true; //Filter jumps in pose tracking
 float pose_jumpThresholdMetres = 0.3;
 int pose_numFramesUntilSet = 4;
 float pose_smoothing = 0.0f; //We are not smoothing the pose
@@ -70,7 +70,7 @@ int main()
 	//*******************Init RealSense Camera Parameters********************
 	//Inits realsense camera object
 	RealSense realsense_camera(realsense_timeout); //timeout is the amount of time we wait for realsense thread to update the data
-	 
+
 	//Configures the camera
 	//These constants are in RealSense.h
 	bool realsense_check= realsense_camera.RealSenseInit(REALSENSE_WIDTH,
@@ -85,22 +85,22 @@ int main()
 	cv::Mat depth_normalized;
 	//double minVal, maxVal;
 	cv::Mat depth_colormap;
-	//cv::Mat depth_bgr(cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT),CV_8UC3); //We encode the depth data into 3 8-bit channels. 
+	//cv::Mat depth_bgr(cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT),CV_8UC3); //We encode the depth data into 3 8-bit channels.
 
 	cv::Size realsense_framesize = cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT);
 
 	//Boolean for if realsense data is returned
 	bool is_realsense_data_returned = false;
 	//object to hold realsense data
-	RealSense::RealSenseData realsense_data; 
+	RealSense::RealSenseData realsense_data;
 	Eigen::Matrix4d cam_T_us; //The pose that we are tracking
-	
+
 	//Enters if camera is configured correctly
 	if (realsense_check)
 	{
 		std::cout << "RealSense Camera Properly Setup" << std::endl;
 		//***************Init IR Segmentation Parameters and Camera Intrinsics***********************
-		
+
 		//*****Gets the camera intrinsics
 		// get the current source directory
 		std::string current_directory = getCurrentDirectory();
@@ -141,7 +141,7 @@ int main()
 		std::stringstream right_camera_stream;
 		right_camera_stream << right_mat_str << "," << right_dist_str;
 		std::string right_camera_intrinsics = right_camera_stream.str();
-		
+
 		std::string R_mat_str = openCVMatToCSVString(R_cam);
 		std::string T_mat_str = openCVMatToCSVString(T_cam);
 		std::string E_mat_str = openCVMatToCSVString(E_cam);
@@ -167,12 +167,12 @@ int main()
 		//Creates IR segmentation object, constants are in RealSense.h
 		auto ir_segmenter = std::make_shared<IRSegmentation>(REALSENSE_WIDTH, REALSENSE_HEIGHT, realsense_camera._depth_scale,IRSegmentation::LogLevel::Silent,show_clip_area_andkeypoints,
 			left_camera_matrix,left_dist_coeffs,right_camera_matrix,right_dist_coeffs,R_cam,T_cam,E_cam,F_cam);
-		
-		ir_segmenter->setDetectionMode(IRSegmentation::DetectionMode::Blob); //Sets the segmentation method
-		ir_segmenter->setCameraBoundaries(0,REALSENSE_HEIGHT-1,0,REALSENSE_WIDTH-1,NEAR_CLIP,FAR_CLIP); //Sets the camera boundaries	
 
-		
-		
+		ir_segmenter->setDetectionMode(IRSegmentation::DetectionMode::Blob); //Sets the segmentation method
+		ir_segmenter->setCameraBoundaries(0,REALSENSE_HEIGHT-1,0,REALSENSE_WIDTH-1,NEAR_CLIP,FAR_CLIP); //Sets the camera boundaries
+
+
+
 		//*********************Start the pose calculator************************
 		PoseTracker poseTracker(ir_segmenter, geom, pose_markerDiameter); //Starts the pose tracker thread
 		poseTracker.setJumpSettings(pose_filterJumps, pose_jumpThresholdMetres, pose_numFramesUntilSet);
@@ -180,7 +180,7 @@ int main()
 
 
 		//************************Init the Force Sensor************************
-		Eigen::MatrixXd force_calibration_mat = readCSVToEigenMatrix("Resources/calmat.csv", 3, 13); //Read in force calibration matrix		
+		Eigen::MatrixXd force_calibration_mat = readCSVToEigenMatrix("Resources/calmat.csv", 3, 13); //Read in force calibration matrix
 		Eigen::Vector3d force_zeroing_offset(0.0, 0.0, 0.0); //Zeroing is set to zeros for now until we do zeroing below
 		Eigen::MatrixXd force_compensation_mat = readCSVToEigenMatrix("Resources/compensationmat_1.csv", 3, 3);
 		std::string raw_force_string, temp_imu_string, force_string_xyz; //String that we read force readings into
@@ -191,8 +191,8 @@ int main()
 		{
 			std::cout << "Failed to Initialize Force Sensor Serial Stream" << std::endl;
 			return 0;
-		}		
-		
+		}
+
 
 
 		//***********************Init the US Frame Grabber*********************
@@ -215,11 +215,11 @@ int main()
 		int MAX_LANDMARKS = landmarkVector.size(); //How many landmarks we set at the start
 		int landmark_counter = 0;
 		std::string landmark_string = "-1";
-		
-		
+
+
 
 		//***********User Input for Zeroing the Force Vector**********
-		spdlog::info("~~~~~~~~Move ultrasound probe to zero forces and press Enter to log~~~~~~~~");
+		spdlog::info("Move ultrasound probe to zero forces and press Enter to log");
 		std::cin.get(); //Wait for user to press enter
 		shellReader.getForceString(raw_force_string, force_string_xyz);
 		//Updates the zeroing offset to the recorded force value
@@ -233,24 +233,24 @@ int main()
 		//**********************Init Datalogger***********************
 		//Initializes the datalogger object, first string is root directory second string is subdirectory
 		//defaults it to data/PXX where XX is the most recent participant number
-		Datalogger datalogger(data_root_path, data_participant_directory, force_calibration_mat, force_zeroing_offset, force_compensation_mat,
+		Datalogger datalogger(getCurrentDirectory() + data_root_path, data_participant_directory, force_calibration_mat, force_zeroing_offset, force_compensation_mat,
 			left_camera_intrinsics, right_camera_intrinsics, R_mat_str, T_mat_str, E_mat_str, F_mat_str,
 			realsense_camera._depth_scale, REALSENSE_WIDTH, REALSENSE_HEIGHT, REALSENSE_FPS, USStreamer._windowWidth_original, USStreamer._windowHeight_original, REALSENSE_FPS, ir_segmenter);
 
 		//******************Anatomy Landmarks Prompts*****************
 		std::cout << "~~~~~~~~Move ultrasound probe to collect landmarks~~~~~~~~\n";
 		std::cout << "Press Enter to record pose of: " << landmarkVector[landmark_counter] <<"\n";
-		
+
 		auto start_time = std::chrono::high_resolution_clock::now();
 		while (true)
-		{		
+		{
 			last_loop_time = std::chrono::steady_clock::now();
-			//*****************Get RealSense Data******************			
+			//*****************Get RealSense Data******************
 			is_realsense_data_returned =realsense_camera.getRealSenseData(realsense_data);
-			
-			
+
+
 			//!!!Data Collection Synchronized to RealSense!!!
-			
+
 			if (is_realsense_data_returned) //Enters if depth/ir frames arrive
 			{
 				//***********************RealSense Data Conversions******************
@@ -276,8 +276,8 @@ int main()
 				/*curr_time = std::chrono::steady_clock::now();
 				elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_time - last_time).count();*/
 				//std::cout << "Update Pose dt: " << elapsed_ms << std::endl;
-				
-				
+
+
 
 				//************************Get Force/IMU************************
 				//last_time = std::chrono::steady_clock::now();
@@ -310,7 +310,7 @@ int main()
 
 				//****************RealSense OpenCV Conversions*****************
 				//last_time = std::chrono::steady_clock::now();
-				//Converts depth frame to vector representation 
+				//Converts depth frame to vector representation
 				/*auto depth_data = reinterpret_cast<const uint16_t*>(realsense_data.depthFrameFiltered.get_data());
 				std::vector<uint16_t> depth_vector(depth_data, depth_data + (REALSENSE_HEIGHT * REALSENSE_WIDTH));
 				auto depth_ptr = std::make_unique<std::vector<uint16_t>>(std::move(depth_vector));*/
@@ -346,16 +346,16 @@ int main()
 				elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_time - last_time).count();
 				std::cout << "Frame Writing dt: " << elapsed_ms << std::endl;*/
 
-				//************************Get Pose*****************************				
+				//************************Get Pose*****************************
 				//Waits for pose calculator to grab pose
 				last_time = std::chrono::steady_clock::now();
 				std::unique_lock<std::mutex> lock{ poseTracker.m_poseMutex };
 				bool poseReceived = poseTracker.m_pose_here_CV.wait_for(lock, std::chrono::milliseconds(posetracker_timeout), [&] {return poseTracker.hasNewPose(); });
-				lock.unlock();				
+				lock.unlock();
 
 				//Check if pose is computed
 				if (!poseReceived) {
-					//Failed to compute pose, make the matrix all "-1's" to indicate it is false			
+					//Failed to compute pose, make the matrix all "-1's" to indicate it is false
 					//std::cout << "Failed Pose Computation" << std::endl;
 					cam_T_us << -1, -1, -1, -1,
 						-1, -1, -1, -1,
@@ -394,7 +394,7 @@ int main()
 
 				//************************Logging Pose/Force/IMU Data*************************
 				//last_time = std::chrono::steady_clock::now();
-				// 
+				//
 				////get the time since running
 				auto current_time = std::chrono::high_resolution_clock::now();
 				elapsed_time = current_time - start_time;
@@ -402,12 +402,12 @@ int main()
 				realsense_frame_count++; //Increments the depth frame counter
 				////Writes pose/force to scandata_datetime.csv
 				datalogger.writeCSVRow(elapsed_seconds, realsense_frame_count, us_frame_count, cam_T_us, raw_force_string, force_string_xyz, temp_imu_string, landmark_string);
-				
+
 				/*curr_time = std::chrono::steady_clock::now();
 				elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_time - last_time).count();
 				std::cout << "CSV Logging dt: " << elapsed_ms<<std::endl;*/
-				
-				
+
+
 
 				curr_loop_time = std::chrono::steady_clock::now();
 				elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_loop_time - last_loop_time).count();
@@ -463,11 +463,11 @@ int main()
 				}
 
 				if (show_depth) //Shows the depth frame from the realsense
-				{					
-					//cv::minMaxIdx(depth_mat, &minVal, &maxVal); //Finds the min and max values 
+				{
+					//cv::minMaxIdx(depth_mat, &minVal, &maxVal); //Finds the min and max values
 					depth_mat.setTo(4095, depth_mat > 4095); //Clamps the depth data from 0->4 (4095 mm) meters
 
-					depth_mat.convertTo(depth_normalized, CV_8U, 255.0 / 4095); //Normalizes from 0-255					
+					depth_mat.convertTo(depth_normalized, CV_8U, 255.0 / 4095); //Normalizes from 0-255
 					cv::applyColorMap(depth_normalized, depth_colormap, cv::COLORMAP_HOT); //Applies the colour map
 
 					// Display the heatmap
@@ -511,8 +511,8 @@ int main()
 
 			}
 		}
-		realsense_camera.stop();	
-		
+		realsense_camera.stop();
+
 	}
 
 	return 0;
