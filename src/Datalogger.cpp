@@ -118,45 +118,45 @@ Datalogger::Datalogger(std::string root_path,
     cv::Size frameSize = cv::Size(depth_width, depth_height);
 
     //Depth video writer
-    _depth_videowriter.open(_depth_file,
-                            cv::CAP_FFMPEG,
-                            cv::VideoWriter::fourcc('F', 'F', 'V', '1'),
-                            depth_fps,
-                            frameSize,
-                            {cv::VideoWriterProperties::VIDEOWRITER_PROP_DEPTH, CV_16UC1,
-                             cv::VideoWriterProperties::VIDEOWRITER_PROP_IS_COLOR, false});
+    depthVidWriter_.open(_depth_file,
+                         cv::CAP_FFMPEG,
+                         cv::VideoWriter::fourcc('F', 'F', 'V', '1'),
+                         depth_fps,
+                         frameSize,
+                         {cv::VideoWriterProperties::VIDEOWRITER_PROP_DEPTH, CV_16UC1,
+                          cv::VideoWriterProperties::VIDEOWRITER_PROP_IS_COLOR, false});
 
     //ir Left video writer
-    _irLeft_videowriter.open(_irLeft_file,
-                             cv::VideoWriter::fourcc('M', 'J', 'P', 'G'),
-                             depth_fps,
-                             frameSize,
-                             {cv::VideoWriterProperties::VIDEOWRITER_PROP_DEPTH, CV_8UC1,
-                              cv::VideoWriterProperties::VIDEOWRITER_PROP_IS_COLOR, false});
-
-    //ir Right video writer
-    _irRight_videowriter.open(_irRight_file,
-                              cv::VideoWriter::fourcc('M', 'J', 'P', 'G'),
-                              depth_fps,
-                              frameSize,
-                              {cv::VideoWriterProperties::VIDEOWRITER_PROP_DEPTH, CV_8UC1,
-                               cv::VideoWriterProperties::VIDEOWRITER_PROP_IS_COLOR, false});
-
-    //rgb video writer
-    _bgr_videowriter.open(_rgb_file,
+    irLeftVidWriter_.open(_irLeft_file,
                           cv::VideoWriter::fourcc('M', 'J', 'P', 'G'),
                           depth_fps,
                           frameSize,
-                          {cv::VideoWriterProperties::VIDEOWRITER_PROP_IS_COLOR, true});
+                          {cv::VideoWriterProperties::VIDEOWRITER_PROP_DEPTH, CV_8UC1,
+                           cv::VideoWriterProperties::VIDEOWRITER_PROP_IS_COLOR, false});
+
+    //ir Right video writer
+    irRightVidWriter_.open(_irRight_file,
+                           cv::VideoWriter::fourcc('M', 'J', 'P', 'G'),
+                           depth_fps,
+                           frameSize,
+                           {cv::VideoWriterProperties::VIDEOWRITER_PROP_DEPTH, CV_8UC1,
+                            cv::VideoWriterProperties::VIDEOWRITER_PROP_IS_COLOR, false});
+
+    //rgb video writer
+    camVidWriter_.open(_rgb_file,
+                       cv::VideoWriter::fourcc('M', 'J', 'P', 'G'),
+                       depth_fps,
+                       frameSize,
+                       {cv::VideoWriterProperties::VIDEOWRITER_PROP_IS_COLOR, true});
 
     cv::Size us_frameSize = cv::Size(us_width, us_height);
     std::cout << "US Frame Size: " << us_frameSize << std::endl;
     //US video writer
-    _us_videowriter.open(_us_file,
-                         cv::VideoWriter::fourcc('M', 'J', 'P', 'G'),
-                         us_fps,
-                         us_frameSize,
-                         {cv::VideoWriterProperties::VIDEOWRITER_PROP_IS_COLOR, true});
+    usVidWriter_.open(_us_file,
+                      cv::VideoWriter::fourcc('M', 'J', 'P', 'G'),
+                      us_fps,
+                      us_frameSize,
+                      {cv::VideoWriterProperties::VIDEOWRITER_PROP_IS_COLOR, true});
 
     //Sets the left ROI in case we do cropping before storing the realsense frames
     _leftROI = cv::Rect(CROP_X, CROP_Y, CROP_WIDTH, CROP_HEIGHT);
@@ -165,22 +165,17 @@ Datalogger::Datalogger(std::string root_path,
 
 Datalogger::~Datalogger()
 {
-    _csv_file.close();
-    _depth_videowriter.release();
-    _irLeft_videowriter.release();
-    _irRight_videowriter.release();
-    _bgr_videowriter.release();
-    _us_videowriter.release();
+    close();
 }
 
 void Datalogger::close()
 {
     _csv_file.close();
-    _depth_videowriter.release();
-    _irLeft_videowriter.release();
-    _irRight_videowriter.release();
-    _bgr_videowriter.release();
-    _us_videowriter.release();
+    depthVidWriter_.release();
+    irLeftVidWriter_.release();
+    irRightVidWriter_.release();
+    camVidWriter_.release();
+    usVidWriter_.release();
 }
 
 
@@ -235,8 +230,7 @@ void Datalogger::writeDepthFrame(cv::Mat &frame)
     if (IS_ROI_CROP) {
         frame = cropMat(frame, _leftROI);
     }
-
-    _depth_videowriter.write(frame);
+    depthVidWriter_.write(frame);
 }
 
 void Datalogger::writeIRFrames(cv::Mat &irLeft, cv::Mat &irRight)
@@ -247,8 +241,8 @@ void Datalogger::writeIRFrames(cv::Mat &irLeft, cv::Mat &irRight)
         irLeft = cropMat(irLeft, _leftROI);
         irRight = cropMat(irRight, _rightROI);
     }
-    _irLeft_videowriter.write(irLeft);
-    _irRight_videowriter.write(irRight);
+    irLeftVidWriter_.write(irLeft);
+    irRightVidWriter_.write(irRight);
 }
 
 void Datalogger::writeColourFrame(cv::Mat &colourFrame)
@@ -258,14 +252,13 @@ void Datalogger::writeColourFrame(cv::Mat &colourFrame)
     if (IS_ROI_CROP) {
         colourFrame = cropMat(colourFrame, _leftROI);
     }
-    _bgr_videowriter.write(colourFrame);
+    camVidWriter_.write(colourFrame);
 }
 
 
 void Datalogger::writeUSFrame(const cv::Mat &us_frame)
 {
     if (us_frame.empty()) {
-        std::cout << "!!!!!!!Ultrasound Frame Empty!!!!!!" << std::endl;
         return;
     }
 
@@ -275,5 +268,5 @@ void Datalogger::writeUSFrame(const cv::Mat &us_frame)
         _us_converted_frame = us_frame;
     }
 
-    _us_videowriter.write(_us_converted_frame);
+    usVidWriter_.write(_us_converted_frame);
 }

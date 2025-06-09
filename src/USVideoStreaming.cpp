@@ -2,17 +2,6 @@
 #include <spdlog/spdlog.h>
 #include "configs.hpp"
 
-
-BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam) {
-    char title[256];
-    if (IsWindowVisible(hwnd) && GetWindowTextA(hwnd, title, sizeof(title))) {
-        if (strlen(title) > 0) {
-            spdlog::info("Window: {}", title);
-        }
-    }
-    return TRUE;
-}
-
 //****************Setup Methods******************
 USVideoStreaming::USVideoStreaming(bool show_stream, int timeout)
 	: _showStream(show_stream),
@@ -29,10 +18,6 @@ USVideoStreaming::USVideoStreaming(bool show_stream, int timeout)
 	_bi{},
 	_timeout(timeout)
 {
-
-    // debug: List out all windows name here
-    EnumWindows(EnumWindowsProc, 0);
-
     const std::string winName = gCoreConfig.usWindowDisplayName;
     spdlog::info("Initializing USVideoStreaming with window name: {}", winName);
 	_windowHandle = FindWindow(0, winName.c_str());
@@ -165,7 +150,8 @@ void USVideoStreaming::ReadFrames()
 		//StretchBlt(_hwindowCompatibleDC, 0, 0, _windowWidth, _windowHeight, _hwindowDC, 0, 0, _windowWidth, _windowHeight, SRCCOPY);
 		BitBlt(_hwindowCompatibleDC, 0, 0, _windowWidth, _windowHeight, _hwindowDC, 0, 0, SRCCOPY);
 		GetDIBits(_hwindowCompatibleDC, _hbwindow, 0, _windowHeight, USFrameScaled.data, (BITMAPINFO*)&_bi, DIB_RGB_COLORS);
-		cv::resize(USFrameScaled, USFrame, cv::Size(_windowWidth_original, _windowHeight_original), 0, 0, cv::INTER_CUBIC);
+        if (!USFrameScaled.empty())
+	        cv::resize(USFrameScaled, USFrame, cv::Size(_windowWidth_original, _windowHeight_original), 0, 0, cv::INTER_CUBIC);
 
 		//Updates the frame queue and locks the mutex before writing to the queue and notifying
 		//cv::Mat NewFrame = USFrame.clone();

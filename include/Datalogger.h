@@ -1,13 +1,8 @@
 #pragma once
 #include "IRSegmentation.h" //Has a bunch of includes
 #include "RealSense.h"
-#include "Utils.h"
-// #include <Windows.h>
-#include <iostream>
 #include <fstream>
-#include <sstream>
-#include <vector>
-#include <zstd.h>
+#include "AsyncVideoWriter.hpp"
 
 //Constants for cropping the realsense frames to only the ROI (not doing this now)
 const bool IS_ROI_CROP = false;
@@ -79,8 +74,10 @@ private:
     FILE *_us_pipeout;
 
     //OpenCV Video Writing Vars
-    cv::VideoWriter _us_videowriter, _depth_videowriter, _irLeft_videowriter, _irRight_videowriter,
-                    _bgr_videowriter;
     cv::Rect _leftROI, _rightROI;
     cv::Mat _us_converted_frame;
+
+    // Async video writer
+    UBCRCL::AsyncVideoWriter usVidWriter_, depthVidWriter_,
+                               irLeftVidWriter_, irRightVidWriter_, camVidWriter_;
 };

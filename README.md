@@ -44,3 +44,7 @@ Steps:
 adb tcpip 5555 # Enable TCP/IP mode
 ./scrcpy.exe --tcpip=<IP_ADDRESS> # Connect to the tablet wirelessly
 ```
+
+#### Known Issues
+
+1. The first few seconds streams of the async video writer is corrupted. (to be fixed)

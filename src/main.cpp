@@ -293,8 +293,8 @@ int main()
 				//************************Get US Frame*************************
 				//last_time = std::chrono::steady_clock::now();
 				cv::Mat usFrame = USStreamer.getFrame(); //Gets most recent us frame
-				if (!usFrame.empty()) //If the ultraasound frame is not empty, we write the US frame and increment us counter
-				{
+			    if (!usFrame.empty()) {
+			        // If the ultraasound frame is not empty, we write the US frame and increment us counter
 					us_frame_count++;
 					datalogger.writeUSFrame(usFrame);
 					if (show_us_stream)
