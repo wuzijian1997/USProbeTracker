@@ -60,6 +60,7 @@ set(HEADERS
         ${HEADER_DIR}/Utils.h
         ${HEADER_DIR}/configs.hpp
         ${HEADER_DIR}/loggers.hpp
+        ${HEADER_DIR}/AsyncVideoWriter.hpp
 )
 
 # Add your source files here

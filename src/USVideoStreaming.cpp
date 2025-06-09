@@ -150,7 +150,8 @@ void USVideoStreaming::ReadFrames()
 		//StretchBlt(_hwindowCompatibleDC, 0, 0, _windowWidth, _windowHeight, _hwindowDC, 0, 0, _windowWidth, _windowHeight, SRCCOPY);
 		BitBlt(_hwindowCompatibleDC, 0, 0, _windowWidth, _windowHeight, _hwindowDC, 0, 0, SRCCOPY);
 		GetDIBits(_hwindowCompatibleDC, _hbwindow, 0, _windowHeight, USFrameScaled.data, (BITMAPINFO*)&_bi, DIB_RGB_COLORS);
-		cv::resize(USFrameScaled, USFrame, cv::Size(_windowWidth_original, _windowHeight_original), 0, 0, cv::INTER_CUBIC);
+        if (!USFrameScaled.empty())
+	        cv::resize(USFrameScaled, USFrame, cv::Size(_windowWidth_original, _windowHeight_original), 0, 0, cv::INTER_CUBIC);
 
 		//Updates the frame queue and locks the mutex before writing to the queue and notifying
 		//cv::Mat NewFrame = USFrame.clone();

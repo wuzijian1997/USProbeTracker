@@ -2,7 +2,8 @@ description = "Core Configuration"
 enableForceSensor = false
 
 # US Display Streaming Configuration
-USWindowDisplayName = "Galaxy Tab Active4 Pro 5G"
+#USWindowDisplayName = "Galaxy Tab Active4 Pro 5G" # Using Phone Link
+USWindowDisplayName = "SM-T638U" # Using scrcpy
 USStreamDisplayName = "Ultrasound Stream"
 
 # the path here is relative to the root of the project

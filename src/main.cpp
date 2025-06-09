@@ -31,7 +31,7 @@ bool show_us_stream = false; //Show the us stream
 bool show_pose = true; //Show the pose on entire image
 bool show_clip_area_andkeypoints = false; //Show the clipped area around the marker, also show keypoints
 bool show_ir = false; //Shows the left ir frame
-bool show_depth = true; //shows the depth map
+bool show_depth = false; //shows the depth map
 std::vector<std::string> landmarkVector = {"PubicBone","Fundus","RightLateral","LeftLateral"};
 
 //Semi-Permanent Setup Parameters
@@ -293,8 +293,8 @@ int main()
 				//************************Get US Frame*************************
 				//last_time = std::chrono::steady_clock::now();
 				cv::Mat usFrame = USStreamer.getFrame(); //Gets most recent us frame
-				if (!usFrame.empty()) //If the ultraasound frame is not empty, we write the US frame and increment us counter
-				{
+			    if (!usFrame.empty()) {
+			        // If the ultraasound frame is not empty, we write the US frame and increment us counter
 					us_frame_count++;
 					datalogger.writeUSFrame(usFrame);
 					if (show_us_stream)
@@ -368,7 +368,7 @@ int main()
 				}
 				curr_time = std::chrono::steady_clock::now();
 				auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_time - last_time).count();
-				std::cout << "Pose dt: " << elapsed_ms << std::endl;
+			    spdlog::info("Pose dt (ms): {}", elapsed_ms);
 
 				//********************Checking for Enter Press for Landmarks*****************
 				if (_kbhit() && (_getch() == '\r')&& (landmark_counter<MAX_LANDMARKS)) //if enter is pressed, record landmark in landmark_string
@@ -411,7 +411,7 @@ int main()
 
 				curr_loop_time = std::chrono::steady_clock::now();
 				elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_loop_time - last_loop_time).count();
-				std::cout << "Loop Time dt: " << elapsed_ms << std::endl;
+				spdlog::info("Loop Time dt (ms): {}", elapsed_ms);
 
 				//************************Displaying Frames********************
 				if (show_pose) //Shows the pose
