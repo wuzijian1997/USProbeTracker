@@ -27,7 +27,7 @@ std::string data_root_path = "\\ALIGN_PhantomData";
 std::string data_participant_directory = "Phantom_14"; //Participant number
 std::string stereo_camera_calib_file = R"(StereoCalibration\CalibFiles\Calib\calibration_params_2.yaml)";
 
-bool show_us_stream = false; //Show the us stream
+bool show_us_stream = true; //Show the us stream
 bool show_pose = true; //Show the pose on entire image
 bool show_clip_area_andkeypoints = false; //Show the clipped area around the marker, also show keypoints
 bool show_ir = false; //Shows the left ir frame

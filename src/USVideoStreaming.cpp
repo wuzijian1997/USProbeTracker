@@ -2,6 +2,17 @@
 #include <spdlog/spdlog.h>
 #include "configs.hpp"
 
+
+BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam) {
+    char title[256];
+    if (IsWindowVisible(hwnd) && GetWindowTextA(hwnd, title, sizeof(title))) {
+        if (strlen(title) > 0) {
+            spdlog::info("Window: {}", title);
+        }
+    }
+    return TRUE;
+}
+
 //****************Setup Methods******************
 USVideoStreaming::USVideoStreaming(bool show_stream, int timeout)
 	: _showStream(show_stream),
@@ -18,6 +29,10 @@ USVideoStreaming::USVideoStreaming(bool show_stream, int timeout)
 	_bi{},
 	_timeout(timeout)
 {
+
+    // debug: List out all windows name here
+    EnumWindows(EnumWindowsProc, 0);
+
     const std::string winName = gCoreConfig.usWindowDisplayName;
     spdlog::info("Initializing USVideoStreaming with window name: {}", winName);
 	_windowHandle = FindWindow(0, winName.c_str());
