@@ -1,0 +1,28 @@
+{
+  "name" : "usprobetracker",
+  "version-string" : "1.0.0",
+  "builtin-baseline" : "bfed87b1938fbd406b9eef28c281b6219c889ae1",
+  "dependencies" : [ {
+    "name" : "eigen3",
+    "version>=" : "3.4.0#5"
+  }, {
+    "name" : "realsense2",
+    "version>=" : "2.56.2#2"
+  }, {
+    "name" : "opencv",
+    "version>=" : "4.11.0",
+    "features" : [ "gstreamer", "ffmpeg", "tbb", "openmp", "msmf", "highgui"]
+  }, {
+    "name" : "zstd",
+    "version>=" : "1.5.7"
+  }, {
+    "name" : "catch2",
+    "version>=" : "3.8.1"
+  }, {
+    "name" : "toml11",
+    "version>=" : "4.4.0"
+  }, {
+    "name" : "spdlog",
+    "version>=" : "1.15.3"
+  }]
+}

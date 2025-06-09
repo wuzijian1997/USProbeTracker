@@ -1,15 +1,23 @@
 #include "RealSense.h"
 #include "StereoCalibClass.h"
 
-std::string checkerboard_rootpath = "C:\\Users\\alexa\\OneDrive\\Documents\\UBC_Thesis\\Code\\ObstetricUS_Project\\StereoCalibration\\CalibFiles\\CheckerboardImages";
-std::string calib_filepath="C:\\Users\\alexa\\OneDrive\\Documents\\UBC_Thesis\\Code\\ObstetricUS_Project\\StereoCalibration\\CalibFiles\\Calib\\calibration_params_2.yaml";
+#include <filesystem>
+#include <iostream>
+
+std::string checkerboard_rootpath = "\\StereoCalibration\\CalibFiles\\CheckerboardImages";
+std::string calib_filepath="\\StereoCalibration\\CalibFiles\\Calib\\calibration_params_2.yaml";
 
 int realsense_timeout = 35; //Realsense Frame Grabber Returns False if waiting more than 35 ms
 
+
 int main()
 {
+    // current directory
+    std::filesystem::path file_path = __FILE__;
+    std::filesystem::path dir = file_path.parent_path();
+
 	//************Initialize Stereo Calibration Object*****************
-	StereoCalibClass stereoCalibrator(10, 7, 0.025f,checkerboard_rootpath);
+	StereoCalibClass stereoCalibrator(10, 7, 0.025f,dir.string() + checkerboard_rootpath);
 
 
 	//****************Init the RealSense Object************************
@@ -46,7 +54,7 @@ int main()
 
 				//***********************RealSense Data Conversions******************
 				ir_mat_left = cv::Mat(cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT), CV_8UC1, (void*)realsense_data.irLeftFrame.get_data());
-				ir_mat_right = cv::Mat(cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT), CV_8UC1, (void*)realsense_data.irRightFrame.get_data());			
+				ir_mat_right = cv::Mat(cv::Size(REALSENSE_WIDTH, REALSENSE_HEIGHT), CV_8UC1, (void*)realsense_data.irRightFrame.get_data());
 
 				//**********************Displaying Frames****************************
 				cv::imshow("IR Left", ir_mat_left);
@@ -63,14 +71,14 @@ int main()
 					std::cout << "Starting Calibration..." << std::endl;
 					if (stereoCalibrator.calibrate())
 					{
-						stereoCalibrator.saveCalibration(calib_filepath);
+						stereoCalibrator.saveCalibration(dir.string() + calib_filepath);
 						std::cout << "Stereo Calibration Complete and Saved" << std::endl;
 					}
 					else
 					{
 						std::cout << "Calibration Failed" << std::endl;
 					}
-					
+
 				}
 
 				if (key == 'q')
