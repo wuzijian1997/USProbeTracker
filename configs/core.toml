@@ -1,5 +1,5 @@
 description = "Core Configuration"
-enableForceSensor = false
+enableForceSensor = true
 shellSensorPortName = "COM4"
 
 # US Display Streaming Configuration
