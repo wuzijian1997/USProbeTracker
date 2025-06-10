@@ -11,7 +11,7 @@
 #include "configs.hpp"
 
 const DWORD SHELLSENSOR_BAUDRATE = CBR_115200;
-const std::wstring SHELLSENSOR_PORTNAME = L"COM9";
+// const std::wstring SHELLSENSOR_PORTNAME = L"COM4";
 const int SHELLSENSOR_TIMEOUT = 100; //Timeout that we will try to read for in ms
 const std::string FORCESENSOR_TAG = "FSN:";
 const std::string TEMPIMU_TAG = "TGA:";
@@ -22,7 +22,7 @@ class ShellSensorReader
 public:
 	//Inits port name and baud rate vars
 	int _timeout = 20; //Timeout is how long we wait for a thread
-	ShellSensorReader(const std::wstring& portName, DWORD baudRate,int timeout, Eigen::MatrixXd force_calibration_mat, Eigen::Vector3d force_zeroing_offset, Eigen::MatrixXd force_compensation_mat);
+	ShellSensorReader(const std::string& portName, DWORD baudRate,int timeout, Eigen::MatrixXd force_calibration_mat, Eigen::Vector3d force_zeroing_offset, Eigen::MatrixXd force_compensation_mat);
 	~ShellSensorReader();
 
 	bool initialize(); //Inits the port connection and serial interface setup
@@ -34,10 +34,10 @@ public:
 
 
 private:
-	std::wstring _portName;
+	std::string _portName;
 	HANDLE _serialHandle;
 	DWORD _baudRate;
-	bool _isSerialPortOpen = false;; //Tracks whether the serial port "_portName" is open
+	bool _isSerialPortOpen = false; //Tracks whether the serial port "_portName" is open
 
 	bool configurePort(); //Sets up port parameters (e.g. baud rate, byte size etc.)
 	bool checkLineTag(std::string& lineTag, std::string& serialLine); //Checks whether the line starts with "FSN:" or "TGA:"

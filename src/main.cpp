@@ -184,7 +184,7 @@ int main()
 		Eigen::Vector3d force_zeroing_offset(0.0, 0.0, 0.0); //Zeroing is set to zeros for now until we do zeroing below
 		Eigen::MatrixXd force_compensation_mat = readCSVToEigenMatrix("Resources/compensationmat_1.csv", 3, 3);
 		std::string raw_force_string, temp_imu_string, force_string_xyz; //String that we read force readings into
-		ShellSensorReader shellReader(SHELLSENSOR_PORTNAME, SHELLSENSOR_BAUDRATE, forcesensor_timeout,force_calibration_mat,force_zeroing_offset,force_compensation_mat); //Sets the baud rate, timeout is wait time thread before returning NaN's
+		ShellSensorReader shellReader(gCoreConfig.shellSensorPortName, SHELLSENSOR_BAUDRATE, forcesensor_timeout,force_calibration_mat,force_zeroing_offset,force_compensation_mat); //Sets the baud rate, timeout is wait time thread before returning NaN's
 		//Initializes the force sensor, and checks if the port is connected
 		//Starts the force sensor thread
 		if (!shellReader.initialize())
@@ -242,6 +242,8 @@ int main()
 		std::cout << "Press Enter to record pose of: " << landmarkVector[landmark_counter] <<"\n";
 
 		auto start_time = std::chrono::high_resolution_clock::now();
+	    unsigned int mainloop_elapsed = 0;
+	    int mainloop_counter = 0;
 		while (true)
 		{
 			last_loop_time = std::chrono::steady_clock::now();
@@ -368,7 +370,7 @@ int main()
 				}
 				curr_time = std::chrono::steady_clock::now();
 				auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_time - last_time).count();
-			    spdlog::info("Pose dt (ms): {}", elapsed_ms);
+			    // spdlog::info("Pose dt (ms): {}", elapsed_ms);
 
 				//********************Checking for Enter Press for Landmarks*****************
 				if (_kbhit() && (_getch() == '\r')&& (landmark_counter<MAX_LANDMARKS)) //if enter is pressed, record landmark in landmark_string
@@ -410,8 +412,12 @@ int main()
 
 
 				curr_loop_time = std::chrono::steady_clock::now();
-				elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_loop_time - last_loop_time).count();
-				spdlog::info("Loop Time dt (ms): {}", elapsed_ms);
+				mainloop_elapsed += std::chrono::duration_cast<std::chrono::milliseconds>(curr_loop_time - last_loop_time).count();
+                if (++mainloop_counter > 100) {
+    			    spdlog::info("Average Loop Time dt (ms): {}", static_cast<float>(mainloop_elapsed / mainloop_counter));
+                    mainloop_counter = 0;
+                    mainloop_elapsed = 0;
+                }
 
 				//************************Displaying Frames********************
 				if (show_pose) //Shows the pose

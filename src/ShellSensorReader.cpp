@@ -1,7 +1,7 @@
 #include "ShellSensorReader.h"
 
 
-ShellSensorReader::ShellSensorReader(const std::wstring& portName, DWORD baudRate,int timeout, Eigen::MatrixXd force_calibration_mat, Eigen::Vector3d force_zeroing_offset, Eigen::MatrixXd force_compensation_mat)
+ShellSensorReader::ShellSensorReader(const std::string& portName, DWORD baudRate,int timeout, Eigen::MatrixXd force_calibration_mat, Eigen::Vector3d force_zeroing_offset, Eigen::MatrixXd force_compensation_mat)
 	: _portName(portName), _baudRate(baudRate),_timeout(timeout), _force_calibration_mat(force_calibration_mat),_force_zeroing_offset(force_zeroing_offset),_force_compensation_mat(force_compensation_mat)
 {
 	enableForceSensor = ConfigInstance::GetInstance()->core().enableForceSensor;
@@ -50,12 +50,12 @@ bool ShellSensorReader::initialize()
 		return true;
 	}
 
-	_serialHandle = CreateFile(reinterpret_cast<LPCSTR>(_portName.c_str()), GENERIC_READ | GENERIC_WRITE, 0, nullptr, OPEN_EXISTING, 0, nullptr);
+	_serialHandle = CreateFile(_portName.c_str(), GENERIC_READ | GENERIC_WRITE, 0, nullptr, OPEN_EXISTING, 0, nullptr);
 	
 	//Checks that the serial port is opened
 	if (_serialHandle == INVALID_HANDLE_VALUE)
 	{
-		std::cout << "Error Opening Serial Port" << std::endl;
+		spdlog::error("Error Opening Serial Port");
 		return false;
 	}
 
@@ -82,7 +82,7 @@ bool ShellSensorReader::configurePort()
 
 	if (!GetCommState(_serialHandle, &serialParams))
 	{
-		std::cout << "Error Getting Serial Port State" << std::endl;
+		spdlog::error("Error Getting Serial Port State");
 		return false;
 	}
 
@@ -93,8 +93,8 @@ bool ShellSensorReader::configurePort()
 	serialParams.Parity = NOPARITY;
 	if (!SetCommState(_serialHandle, &serialParams))
 	{
-		std::cout << "Error Setting Serial Port State" << std::endl;
-		return false;
+		spdlog::error("Error Setting Serial Port State");
+	    return false;
 	}
 
 	//Set the timeouts
@@ -104,7 +104,7 @@ bool ShellSensorReader::configurePort()
 	timeouts.ReadTotalTimeoutMultiplier = SHELLSENSOR_TIMEOUT;
 	if (!SetCommTimeouts(_serialHandle, &timeouts))
 	{
-		std::cout << "Error Setting Serial Port Timeouts" << std::endl;
+	    spdlog::error("Error Setting Serial Port Timeouts");
 		return false;
 	}
 	return true;
@@ -116,8 +116,8 @@ void ShellSensorReader::readLines()
 {
 	if (!_isSerialPortOpen)
 	{
-		std::cout << "Serial Port to Shell Not Open" << std::endl;
-		//Ends thread process if serial port is not connected
+	    spdlog::error("Serial Port to Shell Not Open");
+	    //Ends thread process if serial port is not connected
 		return;
 	}
 
@@ -198,7 +198,7 @@ void ShellSensorReader::readLines()
 			auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(curr_time - last_time).count();
 			if ((int)elapsed_ms > SHELLSENSOR_TIMEOUT)
 			{
-				std::cout << "Serial Timout Triggered" << std::endl;
+				spdlog::warn("Serial Timout Triggered");
 				//Does nothing for now
 
 			}

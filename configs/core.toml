@@ -1,5 +1,6 @@
 description = "Core Configuration"
 enableForceSensor = false
+shellSensorPortName = "COM4"
 
 # US Display Streaming Configuration
 #USWindowDisplayName = "Galaxy Tab Active4 Pro 5G" # Using Phone Link
