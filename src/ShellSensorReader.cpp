@@ -125,7 +125,6 @@ void ShellSensorReader::readLines()
     char tempChar;
     DWORD bytesRead;
     std::string _buffer;          //Buffer of characters read in on serial port
-    std::string force_string_xyz; //Holds the converted raw force values to xyz force
 
     //Vars for timeout checking
     std::chrono::steady_clock::time_point last_time = std::chrono::steady_clock::now();
@@ -145,42 +144,16 @@ void ShellSensorReader::readLines()
                 if (checkLineTag(_forceSenseTag, line)) {
                     //Strips the tag from the string
                     line.erase(0, _forceSenseTag.length());
-                    //Writes force reading to the queue
-                    {
-                        std::lock_guard<std::mutex> l{_sensorReadingMutex};
-                        //Clears the queue before pushing the newest reading (we only have one reading in the queue at a time)
-                        while (!_forceSenseQueue.empty()) {
-                            _forceSenseQueue.pop();
-                        }
-                        _forceSenseQueue.push(line);
-
-                        //Calculates the xyz from raw force
-                        force_string_xyz = calculateForceVals(
-                            line,
-                            _force_calibration_mat,
-                            _force_zeroing_offset,
-                            _force_compensation_mat);
-                        while (!_forceXYZQueue.empty()) {
-                            _forceXYZQueue.pop();
-                        }
-                        _forceXYZQueue.push(force_string_xyz);
-                    }
-                    //Notifies the recipient
-                    _ForceSenseReadingArrived.notify_one();
+                    appendForceString(line);
                 } else if (checkLineTag(_tempImuTag, line)) {
                     //Strips the tag from the string
                     line.erase(0, _tempImuTag.length());
-                    //Writes force reading to the queue
-                    {
-                        std::lock_guard<std::mutex> l{_sensorReadingMutex};
-                        //Clears the queue before pushing the newest reading (we only have one reading in the queue at a time)
-                        while (!_tempImuQueue.empty()) {
-                            _tempImuQueue.pop();
-                        }
-                        _tempImuQueue.push(line);;
-                    //Notifies the recipient
-                    }
-                    _tempImuReadingArrived.notify_one();
+                    appendTempIMUString(line);
+                } else {
+                    // Generic case 12 force + 7 IMU values concat together
+                    auto &[f_str, imu_str] = splitForceImuReadings(line);
+                    appendForceString(f_str);
+                    appendTempIMUString(imu_str);
                 }
             } else if (tempChar != '\r') {
                 //ignore carriage return

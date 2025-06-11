@@ -37,6 +37,7 @@ void triangulatePointsIterativeEigen(const cv::Mat &P1,
                                      const std::vector<cv::Point2f> &right_matched,
                                      cv::Mat &points4D);
 
+std::pair<std::string, std::string> splitForceImuReadings(const std::string& raw_readings);
 
 inline std::string getCurrentTimestampISO8601()
 {

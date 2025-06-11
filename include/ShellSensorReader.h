@@ -33,6 +33,46 @@ public:
     Eigen::Vector3d _force_zeroing_offset; //We manually change this during zeroing
 
 
+    void appendForceString(std::string &str)
+    {
+        std::lock_guard<std::mutex> l{_sensorReadingMutex};
+        //Clears the queue before pushing the newest reading (we only have one reading in the queue at a time)
+        while (!_forceSenseQueue.empty()) {
+            _forceSenseQueue.pop();
+        }
+        _forceSenseQueue.push(str);
+
+        //Calculates the xyz from raw force
+        //Holds the converted raw force values to xyz force
+        const std::string force_string_xyz = calculateForceVals(
+            str,
+            _force_calibration_mat,
+            _force_zeroing_offset,
+            _force_compensation_mat);
+        while (!_forceXYZQueue.empty()) {
+            _forceXYZQueue.pop();
+        }
+        _forceXYZQueue.push(force_string_xyz);
+
+        //Notifies the recipient
+        _ForceSenseReadingArrived.notify_one();
+    }
+
+    void appendTempIMUString(const std::string &str)
+    {
+        //Writes force reading to the queue
+        {
+            std::lock_guard<std::mutex> l{_sensorReadingMutex};
+            //Clears the queue before pushing the newest reading (we only have one reading in the queue at a time)
+            while (!_tempImuQueue.empty()) {
+                _tempImuQueue.pop();
+            }
+            _tempImuQueue.push(str);
+            //Notifies the recipient
+        }
+        _tempImuReadingArrived.notify_one();
+    }
+
 private:
     std::string _portName;
     HANDLE _serialHandle{};

@@ -11,7 +11,7 @@
   }, {
     "name" : "opencv",
     "version>=" : "4.11.0",
-    "features" : [ "gstreamer", "ffmpeg", "tbb", "openmp", "msmf", "highgui"]
+    "features" : [ "gstreamer", "ffmpeg", "tbb", "openmp", "msmf", "highgui" ]
   }, {
     "name" : "zstd",
     "version>=" : "1.5.7"
@@ -24,5 +24,8 @@
   }, {
     "name" : "spdlog",
     "version>=" : "1.15.3"
-  }]
+  }, {
+    "name" : "fmt",
+    "version>=" : "11.0.2#1"
+  } ]
 }

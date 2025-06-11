@@ -1,6 +1,6 @@
 //Helper method to convert raw force sensor readings to actual forces
 #include "Utils.h"
-
+#include <fmt/ranges.h>
 
 std::string calculateForceVals(std::string& raw_force_string, Eigen::MatrixXd& calib_mat, Eigen::Vector3d& zeroing_offset,Eigen::MatrixXd& force_compensation_mat)
 {
@@ -47,6 +47,28 @@ Eigen::VectorXd forcestringToForceVector(std::string& raw_force_string)
 	raw_force_vector[12] = 1.0f;
 	return raw_force_vector;
 
+}
+
+std::pair<std::string, std::string> splitForceImuReadings(const std::string& raw_readings)
+{
+    std::array<int, 12> raw_force_vector{}; //Inits the eigen force vector
+    std::array<int, 7> raw_imu_vector{}; //Inits the eigen force vector
+    std::stringstream ss(raw_readings);
+
+    std::string substr;
+    // split the raw readings to <force_readings, imu_readings>
+    for (int i = 0; i < raw_force_vector.size(); i++) {
+        std::getline(ss, substr, ',');
+        raw_force_vector[i] = std::stod(substr);
+    }
+    for (int i = 0; i < raw_imu_vector.size(); i++) {
+        std::getline(ss, substr, ',');
+        raw_imu_vector[i] = std::stod(substr);
+    }
+
+    // convert array bac to string using fmt
+    return std::make_pair(fmt::format("{}", fmt::join(raw_force_vector, ",")),
+        fmt::format("{}", fmt::join(raw_imu_vector, ",")));
 }
 
 Eigen::Vector3d XYZforcestringToForceXYZVector(const std::string& xyz_force_string)
@@ -114,7 +136,7 @@ std::string EigenMatrixToString(Eigen::MatrixXd& matrix)
 	for (int i = 0; i < matrix.rows(); ++i)
 
 	{
-		//loop for all the columns 
+		//loop for all the columns
 		for (int j = 0; j < matrix.cols(); ++j)
 		{
 			oss << matrix(i, j); //Index row,col of matrix
@@ -137,13 +159,13 @@ std::string EigenMatrixToString(Eigen::MatrixXd& matrix)
 std::string getDatetimeWithMilliseconds() {
 	auto now = std::chrono::system_clock::now();
 	auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()) % 1000;
-	
+
 	auto timer = std::chrono::system_clock::to_time_t(now);
 
 	// convert to broken time
 	std::tm bt;
 	localtime_s(&bt, &timer);
-	
+
 
 	std::ostringstream oss;
 
@@ -212,7 +234,7 @@ void triangulatePointsIterativeLinear(
 
 	int N = left_matched.size();  // Number of points
 	points4D = cv::Mat(4, N, CV_64F);  // Output matrix (4xN)
-	double EPS = 1e-10;	
+	double EPS = 1e-10;
 	int MAX_ITERS = 10;
 
 	for (int i = 0; i < N; i++) {
@@ -240,17 +262,17 @@ void triangulatePointsIterativeLinear(
 			w0 = new_w0;
 			w1 = new_w1;
 		}
-		
-		
+
+
 
 		// Convert to homogeneous coordinates
 		points4D.at<double>(0, i) = x.at<double>(0)/ x.at<double>(3);
 		points4D.at<double>(1, i) = x.at<double>(1)/ x.at<double>(3);
 		points4D.at<double>(2, i) = x.at<double>(2)/ x.at<double>(3);
 		points4D.at<double>(3, i) = 1;  // Homogeneous coordinate
-		
+
 	}
-	
+
 }
 
 void triangulatePointsIterativeEigen(
