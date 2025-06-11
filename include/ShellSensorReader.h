@@ -20,9 +20,9 @@ public:
     ShellSensorReader(const std::string &portName,
                       DWORD baudRate,
                       int timeout,
-                      Eigen::MatrixXd force_calibration_mat,
-                      Eigen::Vector3d force_zeroing_offset,
-                      Eigen::MatrixXd force_compensation_mat);
+                      const Eigen::MatrixXd &force_calibration_mat,
+                      const Eigen::Vector3d &force_zeroing_offset,
+                      const Eigen::MatrixXd &force_compensation_mat);
     ~ShellSensorReader();
 
     bool initialize(); //Inits the port connection and serial interface setup
@@ -35,7 +35,7 @@ public:
 
 private:
     std::string _portName;
-    HANDLE _serialHandle;
+    HANDLE _serialHandle{};
     DWORD _baudRate;
     bool _isSerialPortOpen = false; //Tracks whether the serial port "_portName" is open
 

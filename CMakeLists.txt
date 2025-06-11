@@ -17,7 +17,6 @@ message(STATUS "USER_HOME_DIR: ${USER_HOME_DIR}")
 
 # Find dependencies
 find_package(Eigen3 3.4 REQUIRED)
-find_package(Catch2 3.8 REQUIRED)
 find_package(realsense2 2.56 REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(zstd REQUIRED)
@@ -63,6 +62,15 @@ set(HEADERS
         ${HEADER_DIR}/AsyncVideoWriter.hpp
 )
 
+set(USPROBETRACKER_LIBS
+        Eigen3::Eigen
+        realsense2::realsense2
+        ${OpenCV_LIBS}
+        zstd::libzstd
+        toml11::toml11
+        spdlog::spdlog_header_only
+)
+
 # Add your source files here
 add_executable(USProbeTracker
         ${SOURCES} ${HEADERS}
@@ -77,12 +85,8 @@ target_include_directories(USProbeTracker PRIVATE
 )
 
 target_link_libraries(USProbeTracker
-        Eigen3::Eigen
-        realsense2::realsense2
-        ${OpenCV_LIBS}
-        zstd::libzstd
-        toml11::toml11
-        spdlog::spdlog_header_only
+        PRIVATE
+        ${USPROBETRACKER_LIBS}
 )
 
 add_subdirectory(StereoCalibration)
@@ -100,3 +104,10 @@ add_custom_command(TARGET USProbeTracker POST_BUILD
         ${CMAKE_CURRENT_SOURCE_DIR}/configs
         $<TARGET_FILE_DIR:USProbeTracker>/configs
 )
+
+option(ENABLE_TEST "Enabling test case" ON)
+if (ENABLE_TEST)
+    find_package(Catch2 3.8 REQUIRED)
+    enable_testing()
+    add_subdirectory(test)
+endif ()

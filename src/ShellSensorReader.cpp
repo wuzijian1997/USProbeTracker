@@ -4,11 +4,11 @@
 ShellSensorReader::ShellSensorReader(const std::string &portName,
                                      DWORD baudRate,
                                      int timeout,
-                                     Eigen::MatrixXd force_calibration_mat,
-                                     Eigen::Vector3d force_zeroing_offset,
-                                     Eigen::MatrixXd force_compensation_mat)
-    : _portName(portName), _baudRate(baudRate), _timeout(timeout),
-      _force_calibration_mat(force_calibration_mat), _force_zeroing_offset(force_zeroing_offset),
+                                     const Eigen::MatrixXd &force_calibration_mat,
+                                     const Eigen::Vector3d &force_zeroing_offset,
+                                     const Eigen::MatrixXd &force_compensation_mat)
+    : _timeout(timeout), _force_zeroing_offset(force_zeroing_offset), _portName(portName),
+      _baudRate(baudRate), _force_calibration_mat(force_calibration_mat),
       _force_compensation_mat(force_compensation_mat)
 {
     enableForceSensor = ConfigInstance::GetInstance()->core().enableForceSensor;
@@ -178,21 +178,20 @@ void ShellSensorReader::readLines()
                             _tempImuQueue.pop();
                         }
                         _tempImuQueue.push(line);;
-                    }
                     //Notifies the recipient
+                    }
                     _tempImuReadingArrived.notify_one();
                 }
-            } else if (tempChar != '\r') //ignore carriage return
-            {
+            } else if (tempChar != '\r') {
+                //ignore carriage return
                 _buffer += tempChar; // appends char to the buffer
             }
         } else {
             curr_time = std::chrono::steady_clock::now(); //updates curr time of unsuccessful read
-            auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+            const auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
                 curr_time - last_time).count();
-            if ((int) elapsed_ms > SHELLSENSOR_TIMEOUT) {
+            if (static_cast<int>(elapsed_ms) > SHELLSENSOR_TIMEOUT) {
                 spdlog::warn("Serial Timout Triggered");
-                //Does nothing for now
             }
         }
     }
