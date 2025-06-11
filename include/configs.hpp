@@ -9,6 +9,7 @@ struct CoreConfigType
     // config entries
     bool enableForceSensor{false};
     std::string usWindowDisplayName{};
+    std::string shellSensorPortName{};
 };
 
 /**
@@ -49,6 +50,11 @@ protected:
             coreConfig_.usWindowDisplayName = toml::find_or<std::string>(
                 data,
                 "USWindowDisplayName",
+                "");
+
+            coreConfig_.shellSensorPortName = toml::find_or<std::string>(
+                data,
+                "shellSensorPortName",
                 "");
         } catch (const toml::exception &err) {
             spdlog::error("Error parsing config file: {}", err.what());
