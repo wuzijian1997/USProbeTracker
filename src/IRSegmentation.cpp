@@ -1,14 +1,14 @@
 #include "IRSegmentation.h"
+#include "loggers.hpp"
 
 //Inits the IR tracker:
 
-IRSegmentation::IRSegmentation(int width, int height, double depth_scale, LogLevel logLevel,bool show_clip_area,
+IRSegmentation::IRSegmentation(int width, int height, double depth_scale, bool show_clip_area,
     cv::Mat left_camera_mat,cv::Mat left_dist,cv::Mat right_camera_mat,cv::Mat right_dist,
     cv::Mat R,cv::Mat T, cv::Mat E, cv::Mat F)
     : m_imWidth(width)
     , m_imHeight(height)
-    , m_logLevel(logLevel),
-    m_depth_scale(depth_scale),
+    , m_depth_scale(depth_scale),
     m_show_clip_area(show_clip_area),
     _left_camera_mat(left_camera_mat),
     _left_dist(left_dist),
@@ -88,9 +88,7 @@ Eigen::Vector4i IRSegmentation::setROI(int xMin, int xMax, int yMin, int yMax) {
         std::cerr << "ROI width or height too small" << std::endl;
         return Eigen::Vector4i{ m_xMinCrop, m_xMaxCrop, m_yMinCrop, m_yMaxCrop };
     }
-
-    if (m_logLevel == LogLevel::VeryVerbose)
-        LOG << "Set ROI to " << xMin << ", " << xMax << ", " << yMin << ", " << yMax;
+    spdlog::info("Set ROI to {}, {}, {}, {}", xMin, xMax, yMin, yMax);
 
     //std::scoped_lock<std::mutex> l(m_paramMutex);
     m_xMinCrop = xMin;
@@ -115,9 +113,8 @@ void IRSegmentation::setCameraBoundaries(int roiUpperRow, int roiLowerRow, int r
         setROI(m_xMinCrop, m_xMaxCrop, m_yMinCrop, m_yMaxCrop);
     }
 
-
-    if (m_logLevel == LogLevel::VeryVerbose)
-        LOG << "Top row " << m_depthCamRoiUpperRow << ", bottom row " << m_depthCamRoiLowerRow << ", left col " << m_depthCamRoiLeftCol << ", right col " << m_depthCamRoiRightCol << ", near " << m_depthNearClip << ", far " << m_depthFarClip;
+    spdlog::info("Set camera boundaries to upper row {}, lower row {}, left col {}, right col {}, near clip {}, far clip {}",
+        m_depthCamRoiUpperRow, m_depthCamRoiLowerRow, m_depthCamRoiLeftCol, m_depthCamRoiRightCol, m_depthNearClip, m_depthFarClip);
 }
 
 void IRSegmentation::setCameraIntrinsics(std::function<void(const std::array<double, 2>&, std::array<double, 2>&)> intrinsics) {
@@ -128,11 +125,6 @@ void IRSegmentation::setDetectionMode(DetectionMode mode) {
     //std::scoped_lock<std::mutex> l(m_paramMutex);
     m_mode = mode;
 }
-
-IRSegmentation::LogLevel IRSegmentation::getLogLevel() {
-    return m_logLevel;
-}
-
 
 //*****************Segmentation Methods******************
 
@@ -220,8 +212,7 @@ std::shared_ptr<IRSegmentation::IrDetection> IRSegmentation::findKeypointsWorldF
             double y = keypoints_left[i].pt.y + yMinCrop;
             
             if (y < m_depthCamRoiUpperRow || y > m_depthCamRoiLowerRow || x < m_depthCamRoiLeftCol || x > m_depthCamRoiRightCol) {
-                if (m_logLevel == LogLevel::Verbose)
-                    LOG << "Actually out of bounds";
+                spdlog::info("Actually out of bounds");
                 continue;
             }
 
@@ -236,8 +227,7 @@ std::shared_ptr<IRSegmentation::IrDetection> IRSegmentation::findKeypointsWorldF
             double y = keypoints_right[i].pt.y + _rightROI.y;
 
             if (y < m_depthCamRoiUpperRow || y > m_depthCamRoiLowerRow || x < m_depthCamRoiLeftCol || x > m_depthCamRoiRightCol) {
-                if (m_logLevel == LogLevel::Verbose)
-                    LOG << "Actually out of bounds";
+                spdlog::info("Actually out of bounds");
                 continue;
             }
             right_points.emplace_back(x,y);
@@ -302,14 +292,14 @@ std::shared_ptr<IRSegmentation::IrDetection> IRSegmentation::findKeypointsWorldF
         cv::Mat left_cam_points4d;
         // Check if matched points are empty
         if (left_matched.empty() || right_matched.empty()) {
-            std::cout << "Error: No matched points found. Exiting triangulation"<<std::endl;
+            spdlog::warn("Error: No matched points found. Exiting triangulation");
             return detection;  // Exit early
         }
         //cv::triangulatePoints(_P_left, _P_right, left_matched, right_matched, left_cam_points4d); //For a rectified image
         triangulatePointsIterativeLinear(_P_left, _P_right, left_matched, right_matched, left_cam_points4d);
         //triangulatePointsIterativeEigen(_P_left, _P_right, left_matched, right_matched, left_cam_points4d);
         if (left_cam_points4d.empty()) {
-            std::cout << "No Points Could Be Triangulated" << std::endl;
+            spdlog::warn("No Points Could Be Triangulated");
             return detection;  // Exit early
         }
 
@@ -339,7 +329,6 @@ std::shared_ptr<IRSegmentation::IrDetection> IRSegmentation::findKeypointsWorldF
 
             //Check that the point is within the clip area
             if (Z<m_depthNearClip || Z>m_depthFarClip) {
-                //        //std::cout << "Entered" << std::endl;
                 continue;
 
             }

@@ -79,7 +79,7 @@ public:
 	/// Create an IrTracker object.
 	/// @param width the width of the input image in pixels
 	/// @param height the height of the input image in pixels
-	IRSegmentation(int width, int height, double depth_scale, LogLevel logLevel, bool show_clip_area,
+	IRSegmentation(int width, int height, double depth_scale, bool show_clip_area,
 		cv::Mat left_camera_mat, cv::Mat left_dist, cv::Mat right_camera_mat, cv::Mat right_dist,
 		cv::Mat R, cv::Mat T, cv::Mat E, cv::Mat F);
 	//~IRSegmentation();
@@ -107,8 +107,6 @@ public:
 	
 	/// Use contour or blob detection. Blob detection is much slower but has fewer outliers
 	void setDetectionMode(DetectionMode mode);
-
-	LogLevel getLogLevel();
 
 	double m_depth_scale; //depth scale that we use
 	
@@ -141,8 +139,6 @@ private:
 	bool blobDetect(cv::Mat& im, std::vector<cv::KeyPoint>& keypoints);
 	bool contourDetect(cv::Mat& im, std::vector<cv::KeyPoint>& keypoints);	
 
-	// Debugging
-	LogLevel m_logLevel;
 	//Segmentation Mode
 	DetectionMode m_mode = DetectionMode::Contour; //Default is contour detection
 

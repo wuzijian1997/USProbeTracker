@@ -165,7 +165,7 @@ int main()
 
 
 		//Creates IR segmentation object, constants are in RealSense.h
-		auto ir_segmenter = std::make_shared<IRSegmentation>(REALSENSE_WIDTH, REALSENSE_HEIGHT, realsense_camera._depth_scale,IRSegmentation::LogLevel::Silent,show_clip_area_andkeypoints,
+		auto ir_segmenter = std::make_shared<IRSegmentation>(REALSENSE_WIDTH, REALSENSE_HEIGHT, realsense_camera._depth_scale,show_clip_area_andkeypoints,
 			left_camera_matrix,left_dist_coeffs,right_camera_matrix,right_dist_coeffs,R_cam,T_cam,E_cam,F_cam);
 
 		ir_segmenter->setDetectionMode(IRSegmentation::DetectionMode::Blob); //Sets the segmentation method

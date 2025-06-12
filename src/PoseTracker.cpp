@@ -6,7 +6,7 @@ PoseTracker::PoseTracker(std::shared_ptr<IRSegmentation> irTracker, std::vector<
     , m_markerGeom(geometry)
     , m_markerDiameter(markerDiameter)
 {
-    m_logLevel = irTracker->getLogLevel();
+    m_logLevel = IRSegmentation::LogLevel::VeryVerbose; // For debugging purposes, set to verbose
 
     m_runDetectionThread = true;
     m_detectionThread = std::make_shared<std::thread>([this]() { detectionThreadFunction(); });
