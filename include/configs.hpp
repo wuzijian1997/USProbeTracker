@@ -38,24 +38,19 @@ protected:
         try {
             std::string coreConfigPath = "configs/core.toml";
             const auto data = toml::parse(coreConfigPath, toml::spec::v(1, 1, 0));
-            spdlog::info(
-                "Loading " + coreConfigPath + ": " + toml::find_or<std::string>(
-                    data,
-                    "description",
-                    "not found"));
+            spdlog::info("Loading " + coreConfigPath + ": "
+                         + toml::find_or<std::string>(data, "description", "not found"));
 
             // update main config entries
             coreConfig_.enableForceSensor = toml::find_or<bool>(data, "enableForceSensor", false);
 
-            coreConfig_.usWindowDisplayName = toml::find_or<std::string>(
-                data,
-                "USWindowDisplayName",
-                "");
+            coreConfig_.usWindowDisplayName = toml::find_or<std::string>(data,
+                                                                         "USWindowDisplayName",
+                                                                         "");
 
-            coreConfig_.shellSensorPortName = toml::find_or<std::string>(
-                data,
-                "shellSensorPortName",
-                "");
+            coreConfig_.shellSensorPortName = toml::find_or<std::string>(data,
+                                                                         "shellSensorPortName",
+                                                                         "");
         } catch (const toml::exception &err) {
             spdlog::error("Error parsing config file: {}", err.what());
         }
@@ -79,10 +74,7 @@ public:
 
     static ConfigInstance *GetInstance();
 
-    [[nodiscard]] CoreConfigType core() const
-    {
-        return coreConfig_;
-    }
+    [[nodiscard]] CoreConfigType core() const { return coreConfig_; }
 };
 
 /**

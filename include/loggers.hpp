@@ -3,18 +3,18 @@
  * @author Paul Lee (ycleepaul@gmail.com)
  * @version 0.2
  * @date 2025-05-26
-*/
+ */
 
 #pragma once
 
 #include <iostream>
 #include <spdlog/async.h>
 #include <spdlog/cfg/env.h>
+#include <spdlog/fmt/ranges.h>
 #include <spdlog/sinks/daily_file_sink.h>
 #include <spdlog/sinks/hourly_file_sink.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/spdlog.h>
-#include <spdlog/fmt/ranges.h>
 
 inline bool gInitializedSpdlogThreadPool = false;
 
@@ -23,8 +23,7 @@ inline bool gInitializedSpdlogThreadPool = false;
  * @param loggerName
  * @param setAsDefaultLogger
  */
-static void setupMultiSinkSpdlog(const std::string &loggerName,
-                                 const bool setAsDefaultLogger = true)
+static void setupMultiSinkSpdlog(const std::string &loggerName, const bool setAsDefaultLogger = true)
 {
     if (!gInitializedSpdlogThreadPool) {
         spdlog::init_thread_pool(8192, 1);
@@ -39,21 +38,22 @@ static void setupMultiSinkSpdlog(const std::string &loggerName,
         stdout_sink->set_level(spdlog::level::debug);
 
         // Create a daily logger - a new file is created every day on 23:59
-        const auto file_sink = std::make_shared<spdlog::sinks::daily_file_sink_mt>(
-            "logs/" + loggerName + ".txt",
-            2,
-            0);
+        const auto file_sink = std::make_shared<spdlog::sinks::daily_file_sink_mt>("logs/"
+                                                                                       + loggerName
+                                                                                       + ".txt",
+                                                                                   2,
+                                                                                   0);
         file_sink->set_level(spdlog::level::debug);
 
         std::vector<spdlog::sink_ptr> sinks = {stdout_sink, file_sink};
 
         // async version
-        const auto logger = std::make_shared<spdlog::async_logger>(
-            loggerName,
-            sinks.begin(),
-            sinks.end(),
-            spdlog::thread_pool(),
-            spdlog::async_overflow_policy::block);
+        const auto logger
+            = std::make_shared<spdlog::async_logger>(loggerName,
+                                                     sinks.begin(),
+                                                     sinks.end(),
+                                                     spdlog::thread_pool(),
+                                                     spdlog::async_overflow_policy::block);
 
         // sync version
         // auto logger = std::make_shared<spdlog::logger>(
@@ -110,15 +110,15 @@ static void setupDataSinkSpdlog(const std::string &loggerName)
         // include HH:MM:SS in the log file name
 
         // async version
-        const auto logger = std::make_shared<spdlog::async_logger>(
-            loggerName,
-            file_sink,
-            spdlog::thread_pool(),
-            spdlog::async_overflow_policy::block);
+        const auto logger
+            = std::make_shared<spdlog::async_logger>(loggerName,
+                                                     file_sink,
+                                                     spdlog::thread_pool(),
+                                                     spdlog::async_overflow_policy::block);
 
-        // We have some extra formatting on the log level %l below to keep color coding when dumping json to the console and we use a full ISO 8601 time/date format
-        std::string jsonPattern = {
-            "{\"time\": \"%Y-%m-%dT%H:%M:%S.%f%z\", %v},"};
+        // We have some extra formatting on the log level %l below to keep color coding when dumping
+        // json to the console and we use a full ISO 8601 time/date format
+        std::string jsonPattern = {"{\"time\": \"%Y-%m-%dT%H:%M:%S.%f%z\", %v},"};
 
         // logger->set_pattern("[%H:%M:%S:%e] %v");
         logger->set_pattern(jsonPattern);

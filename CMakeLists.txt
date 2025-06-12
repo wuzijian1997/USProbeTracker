@@ -32,7 +32,6 @@ set(USPROBETRACKER_SOURCES
         ${SOURCE_DIR}/Datalogger.cpp
         ${SOURCE_DIR}/IRSegmentation.cpp
         ${SOURCE_DIR}/main.cpp
-        ${SOURCE_DIR}/pch.cpp
         ${SOURCE_DIR}/PoseTracker.cpp
         ${SOURCE_DIR}/RealSense.cpp
         ${SOURCE_DIR}/ShellSensorReader.cpp
@@ -50,7 +49,6 @@ set(USPROBETRACKER_HEADERS
         ${HEADER_DIR}/framework.h
         ${HEADER_DIR}/IRSegmentation.h
         ${HEADER_DIR}/log.h
-        ${HEADER_DIR}/pch.h
         ${HEADER_DIR}/PoseTracker.h
         ${HEADER_DIR}/readerwriterqueue.h
         ${HEADER_DIR}/RealSense.h

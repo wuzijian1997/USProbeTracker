@@ -1,11 +1,11 @@
 #pragma once
 
-#include <vector>
-#include <string>
-#include <thread>
 #include <deque>
 #include <opencv2/core.hpp>
 #include <opencv2/videoio.hpp>
+#include <string>
+#include <thread>
+#include <vector>
 
 namespace UBCRCL {
 class AsyncVideoWriter
@@ -13,8 +13,7 @@ class AsyncVideoWriter
 public:
     AsyncVideoWriter()
         : frameQueue_(kMaxQueueSize_)
-    {
-    }
+    {}
 
     void open(const std::string &filename,
               int fourcc,
@@ -41,10 +40,7 @@ public:
         }
     }
 
-    ~AsyncVideoWriter()
-    {
-        release();
-    }
+    ~AsyncVideoWriter() { release(); }
 
     void release()
     {
@@ -97,4 +93,4 @@ private:
     std::atomic<bool> stopThread_{false};
     static constexpr uint16_t kMaxQueueSize_ = 100; // Maximum size of the frame queue
 };
-}
+} // namespace UBCRCL

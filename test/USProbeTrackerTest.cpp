@@ -1,7 +1,7 @@
 #define CATCH_CONFIG_ENABLE_BENCHMARKING
-#include <catch2/catch_all.hpp>
-#include "loggers.hpp"
 #include "Utils.h"
+#include "loggers.hpp"
+#include <catch2/catch_all.hpp>
 
 TEST_CASE("LoggerTest")
 {
@@ -14,10 +14,7 @@ TEST_CASE("LoggerTest")
 
     std::array<double, 3> folForce = {0.1, 0.2, 0.3};
     std::array<double, 3> expForce = {0.1, 0.2, 0.3};
-    std::array<double, 16> expPose = {1, 0, 0, 0,
-                                      0, 1, 0, 0,
-                                      0, 0, 1, 0,
-                                      0, 0, 0, 1};
+    std::array<double, 16> expPose = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
 
     logger_->info("\"FollowerForce\": {}, \"ExpectForce\": {}, \"ExpectPose\": {}, \"zero\": {}",
                   folForce,
@@ -26,7 +23,6 @@ TEST_CASE("LoggerTest")
                   0);
 }
 
-
 TEST_CASE("SensorReadingTest")
 {
     std::string line_force = "3964, 1432, 1946, 2119, 1620, 1654, 2178, 4050, 0, 0, 1552, 1972";
@@ -34,10 +30,9 @@ TEST_CASE("SensorReadingTest")
 
     Eigen::Vector3d force_zeroing_offset{};
     Eigen::MatrixXd force_calibration_mat = readCSVToEigenMatrix("../Resources/calmat.csv", 3, 13);
-    Eigen::MatrixXd force_compensation_mat = readCSVToEigenMatrix(
-        "Resources/compensationmat_1.csv",
-        3,
-        3);
+    Eigen::MatrixXd force_compensation_mat = readCSVToEigenMatrix("Resources/compensationmat_1.csv",
+                                                                  3,
+                                                                  3);
 
     std::cout << "Size of force_calibration_mat: " << force_calibration_mat.size() << std::endl;
     std::cout << force_calibration_mat << std::endl;
@@ -45,12 +40,11 @@ TEST_CASE("SensorReadingTest")
     std::cout << "Size of force_compensation_mat: " << force_compensation_mat.size() << std::endl;
     std::cout << force_compensation_mat << std::endl;
 
-    //Read in force calibration matrix
-    auto force_string_xyz = calculateForceVals(
-        line_force,
-        force_calibration_mat,
-        force_zeroing_offset,
-        force_compensation_mat);
+    // Read in force calibration matrix
+    auto force_string_xyz = calculateForceVals(line_force,
+                                               force_calibration_mat,
+                                               force_zeroing_offset,
+                                               force_compensation_mat);
 
     std::cout << "force_string_xyz" << std::endl;
     std::cout << force_string_xyz << std::endl;
