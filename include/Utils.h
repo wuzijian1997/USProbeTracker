@@ -1,17 +1,17 @@
 #pragma once
 #include "IRSegmentation.h" //Has a bunch of includes
-#include <iostream>
 #include <fstream>
+#include <iostream>
 #include <sstream>
 #include <vector>
 
-#include <windows.h>
-#include <string>
-#include <sstream>
 #include <iomanip>
+#include <sstream>
+#include <string>
+#include <windows.h>
 
 //************Force Calculation Helper Methods*************
-//Helper methods
+// Helper methods
 std::string calculateForceVals(std::string &force_string,
                                Eigen::MatrixXd &calib_mat,
                                Eigen::Vector3d &zeroing_offset,
@@ -37,7 +37,7 @@ void triangulatePointsIterativeEigen(const cv::Mat &P1,
                                      const std::vector<cv::Point2f> &right_matched,
                                      cv::Mat &points4D);
 
-std::pair<std::string, std::string> splitForceImuReadings(const std::string& raw_readings);
+std::pair<std::string, std::string> splitForceImuReadings(const std::string &raw_readings);
 
 inline std::string getCurrentTimestampISO8601()
 {
@@ -59,12 +59,10 @@ inline std::string getCurrentTimestampISO8601()
     }
 
     std::ostringstream oss;
-    oss << local.wYear << "-"
-        << (local.wMonth < 10 ? "0" : "") << local.wMonth << "-"
-        << (local.wDay < 10 ? "0" : "") << local.wDay << "T"
-        << (local.wHour < 10 ? "0" : "") << local.wHour << ":"
-        << (local.wMinute < 10 ? "0" : "") << local.wMinute << ":"
-        << (local.wSecond < 10 ? "0" : "") << local.wSecond << "."
-        << std::setfill('0') << std::setw(3) << local.wMilliseconds << "Z" << offsetStr;
+    oss << local.wYear << "-" << (local.wMonth < 10 ? "0" : "") << local.wMonth << "-"
+        << (local.wDay < 10 ? "0" : "") << local.wDay << "T" << (local.wHour < 10 ? "0" : "")
+        << local.wHour << ":" << (local.wMinute < 10 ? "0" : "") << local.wMinute << ":"
+        << (local.wSecond < 10 ? "0" : "") << local.wSecond << "." << std::setfill('0')
+        << std::setw(3) << local.wMilliseconds << "Z" << offsetStr;
     return oss.str();
 }
